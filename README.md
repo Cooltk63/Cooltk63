@@ -1,151 +1,74 @@
-.section {
-    padding: 1px;
-    width: auto;
-    background: #222A35;
-    color: #ffffff;
-    height: 100%;
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+
+public class RSAKeyPairGenerator {
+    public static KeyPair generateKeyPair() throws NoSuchAlgorithmException {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        return keyPairGenerator.generateKeyPair();
+    }
 }
 
-.CardData {
-    margin-top: 10px;
-    display: flex;
-    align-items: center;
-    color: #ffffff;
-    justify-content: space-evenly;
-}
 
-.Card {
-    color: #ffffff;
-    border: 2px solid rgba(0, 0, 0, .2);
-    box-shadow: 0 0 10px rgba(255, 255, 255, .2);
-}
 
-.CardDatas {
-    padding-top: 10px;
-    margin-top: 10px;
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    color: #ffffff;
-    padding-left: 10px;
-    padding-right: 10px;
-}
 
-.CardDatas #searchbox {
-    width: 12em;
-    height: 2.5em;
-    background: #ffffff;
-    border: none;
-    outline: none;
-    border-radius: 40px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, .1);
-    cursor: pointer;
-    font-size: 14px;
-    color: #333;
-    font-weight: 700;
-}
 
-.CardDatas button {
-    width: 12em;
-    height: 2.5em;
-    background: #ffffff;
-    border: none;
-    outline: none;
-    border-radius: 40px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, .1);
-    cursor: pointer;
-    font-size: 14px;
-    color: #333;
-    font-weight: 700;
-}
+....
 
-.CardDatas #searchbox::placeholder {
-    text-align: center;
-    color: #575C66;
-    margin-left: 2px;
-}
+import javax.crypto.Cipher;
+import java.security.PublicKey;
+import java.security.PrivateKey;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchProviderException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.BadPaddingException;
+import java.util.Base64;
 
-.search {
-    box-shadow: 0 0 10px rgba(255, 255, 255, .5);
-}
+public class RSAEncryption {
+    public static String encrypt(String plainText, PublicKey publicKey) 
+            throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, 
+                   IllegalBlockSizeException, BadPaddingException {
+        Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        byte[] encryptedBytes = cipher.doFinal(plainText.getBytes());
+        return Base64.getEncoder().encodeToString(encryptedBytes);
+    }
 
-.container {
-    color: #575C66;
-    margin-top: 20px;
-    margin-bottom: 20px;
-    height: 20em;
-    width: auto;
-    border-radius: 10px;
-    padding-right: 5px;
-    padding-left: 5px;
-    overflow-y: auto;
-    max-height: 400px;
-}
+    public static String decrypt(String encryptedText, PrivateKey privateKey) 
+            throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, 
+                   IllegalBlockSizeException, BadPaddingException {
+        Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedText));
+        return new String(decryptedBytes);
+    }
 
-input:focus, select:focus {
-    outline: none;
-    border: 3px solid rgba(73, 222, 14, 0.2);
-}
+    public static void main(String[] args) {
+        try {
+            // Generate RSA key pair
+            KeyPair keyPair = RSAKeyPairGenerator.generateKeyPair();
+            PublicKey publicKey = keyPair.getPublic();
+            PrivateKey privateKey = keyPair.getPrivate();
 
-.tables2 td {
-    margin-top: 5px;
-    padding: 2px;
-    border: 1px solid grey;
-}
+            // Original text
+            String originalText = "Hello, RSA Encryption!";
+            System.out.println("Original Text: " + originalText);
 
-.tables2 td input {
-    border: none;
-    box-sizing: border-box;
-}
+            // Encrypt the text
+            String encryptedText = encrypt(originalText, publicKey);
+            System.out.println("Encrypted Text: " + encryptedText);
 
-.tables2 td select {
-    border: none;
-    box-sizing: border-box;
-}
+            // Decrypt the text
+            String decryptedText = decrypt(encryptedText, privateKey);
+            System.out.println("Decrypted Text: " + decryptedText);
 
-.table-body input::placeholder {
-    color: #ffff;
-}
-
-select option {
-    color: #000;
-    background-color: #ffffff;
-    padding: 8px;
-}
-
-.saveBtn, .delBtn, .submitBtn, .pagination button {
-    width: 12em;
-    height: 2.5em;
-    background: #ffffff;
-    border: none;
-    outline: none;
-    border-radius: 40px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, .1);
-    cursor: pointer;
-    font-size: 14px;
-    color: #333;
-    font-weight: 700;
-}
-
-.pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 10px 0;
-}
-
-.footer {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    padding: 10px 0;
-}
-
-.submitBtn {
-    margin-top: 20px;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
