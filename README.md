@@ -1,7 +1,6 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import saveAs from 'file-saver';
 import './style.css';
-
 import axios from 'axios';
 
 const SalesData = () => {
@@ -10,89 +9,73 @@ const SalesData = () => {
     const [nextId, setNextId] = useState(1);
     const [isAddDisabled, setIsAddDisabled] = useState(false);
     const [isSaveDisabled, setIsSaveDisabled] = useState(true);
-    const [currentPage, setcurrentPage] = useState(1);
+    const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
     const rowsPerPage = 6;
-    // For Calculate Previous Year Sale.
+
     const previousYearSale = 2000;
-    // For Calculate Previous Year Customers
     const prevCust = 50;
 
-
-    // Fetching API Data From URI
     useEffect(() => {
-
         axios.get('https://reqres.in/api/users?page=2')
-            .then(responce => {
-                if (Array.isArray(responce.data.data)) {
-                    const SalesPersonsNames = responce.data.data.map(person => ({
+            .then(response => {
+                if (Array.isArray(response.data.data)) {
+                    const SalesPersonsNames = response.data.data.map(person => ({
                         id: person.id,
                         name: `${person.first_name} ${person.last_name}`
                     }));
                     setSalesPersons(SalesPersonsNames);
                 }
-                console.log("Received Data :" + JSON.stringify(responce.data));
-
+                console.log("Received Data :" + JSON.stringify(response.data));
             })
             .catch(error => {
-                alert("error while fetching api data :"+error);
-            })
+                alert("error while fetching api data :" + error);
+            });
     }, []);
-
-
 
     useEffect(() => {
         const currentPageRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-        console.log("Value of rowsPerPage :"+rowsPerPage);
-        console.log("Value of currentPage :"+currentPage);
-
-        console.log("** Value of currentPageRows :"+currentPageRows.length);
         if (currentPageRows.length === 0) {
             setIsAddDisabled(false);
-            console.log("inside Disabling setIsAddDisabled ::FALSE");
         }
-        if(currentPageRows.length >0 && validateRows())
-        {
-            alert("value of Current Rows Length: "+currentPageRows.length +"Value of Validate Rows :"+validateRows())
-            // setIsSaveDisabled(true);
-            console.log("inside Disabling setIsAddDisabled ::TRUE");
+        if (validateRows()) {
+            setIsSaveDisabled(false);
+            setIsSubmitDisabled(false);
+        } else {
+            setIsSaveDisabled(true);
+            setIsSubmitDisabled(true);
         }
-
     }, [rows]);
 
     const submiData = () => {
-        window.confirm(submiData())
         const fileName = 'Sales_Data.txt';
         const fileContent = JSON.stringify(rows, null, 2);
-        const blob = new Blob([fileContent], {type: 'text/plain;charset=utf-8'});
+        const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
         saveAs(blob, fileName);
+        alert("Data Submitted Successfully");
     }
 
     const addRow = () => {
-
         const currentPageRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
         if (!validateRows() && currentPageRows.length !== 0) {
-            alert("Please fill the all data Fields before adding new Row");
+            alert("Please fill all data fields before adding a new row");
             return;
         }
 
-        if (currentPageRows.length >= rowsPerPage)
-            return;
+        if (currentPageRows.length >= rowsPerPage) return;
 
-
-        // setRows(rows.concat({
-        setRows(prevRows => [...prevRows,
-            {
-                orderId: nextId,
-                checked: false,
-                customerName: '',
-                productName: '',
-                quantity: '',
-                rate: '',
-                salesValue: '',
-                salesDate: '',
-                salesPersonName: '',
-                status: '',
-            }]);
+        setRows(prevRows => [...prevRows, {
+            orderId: nextId,
+            checked: false,
+            customerName: '',
+            productName: '',
+            quantity: '',
+            rate: '',
+            salesValue: '',
+            salesDate: '',
+            salesPersonName: '',
+            status: '',
+        }]);
         setNextId(prevNextId => prevNextId + 1);
         setIsAddDisabled(true);
     };
@@ -103,48 +86,28 @@ const SalesData = () => {
         setIsAddDisabled(updatedRows.length === 0 || !validateRows(updatedRows));
     };
 
-
     const handleInputChange = (orderId, event) => {
-        const {name, value} = event.target;
+        const { name, value } = event.target;
         setRows(prevRows => prevRows.map(row => {
             if (row.orderId === orderId) {
-                const updatedRow = {
-                    ...row
-                };
+                const updatedRow = { ...row };
                 updatedRow[name] = value;
                 if (name === "quantity" || name === "rate") {
                     const quantity = name === "quantity" ? parseFloat(value) : parseFloat(row.quantity);
                     const rate = name === "rate" ? parseFloat(value) : parseFloat(row.rate);
                     updatedRow.salesValue = (quantity * rate).toFixed(2);
                 }
-                // updatedRow[name] = value;
                 return updatedRow;
             }
             return row;
         }));
         setIsAddDisabled(!validateRows());
-        // setIsSaveDisabled(false);
-
     };
 
     const validateRows = () => {
-        const curretPageRows = rows.slice(
-            (currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-        for (let row of curretPageRows) {
+        const currentPageRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        for (let row of currentPageRows) {
             if (!row.customerName || !row.productName || !row.quantity || !row.rate || !row.salesDate || !row.salesPersonName || !row.status) {
-                console.log("!row.customerName  :" + !row.customerName);
-                console.log("!row.productName  :" + !row.productName);
-                console.log("!row.quantity  :" + !row.quantity);
-                console.log("!row.rate  :" + !row.rate);
-                console.log("!row.salesDate  :" + !row.salesDate);
-                console.log("!row.salesPersonName  :" + !row.salesPersonName);
-                console.log("!row.status  :" + !row.status);
-                setIsSaveDisabled(true);
-                return false;
-            } else if (rows.customerName == null || rows.productName == null ||
-                rows.quantity == null || rows.rate == null ||
-                rows.salesValue == null || rows.salesDate == null ||
-                rows.salesPersonName == null) {
                 setIsSaveDisabled(true);
                 return false;
             }
@@ -154,18 +117,19 @@ const SalesData = () => {
     };
 
     const handlePageChange = (direction) => {
-        if (direction === 'next' && currentPage > 1) {
-            setcurrentPage(currentPage + 1);
+        if (direction === 'next' && currentPage < Math.ceil(rows.length / rowsPerPage)) {
+            setCurrentPage(currentPage + 1);
         } else if (direction === 'prev' && currentPage > 1) {
-            setcurrentPage(currentPage - 1);
+            setCurrentPage(currentPage - 1);
         }
-
     };
+
     const currentPageRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
-    const saveData = () => {
-        alert("Data Saved Successfully");
+    const saveData = (orderId) => {
+        alert(`Data for Order ID ${orderId} Saved Successfully`);
     }
+
     const calculateTotalSales = () => {
         return rows.reduce((total, row) => total + (parseFloat(row.salesValue) || 0), 0);
     };
@@ -176,9 +140,7 @@ const SalesData = () => {
     };
 
     const totalCustomers = calculateTotalCustomers();
-
     const custDataPercentage = ((totalCustomers - prevCust) / prevCust * 100).toFixed(2);
-
 
     const totalSales = calculateTotalSales();
     const percentageValue = ((totalSales - previousYearSale) / previousYearSale * 100).toFixed(2);
@@ -187,108 +149,69 @@ const SalesData = () => {
         <div className="section">
             <div className="CardData">
                 <div className="Card">
-                    <h1> Total Customers </h1>
-                    <p> 1500</p>
+                    <h1>Total Customers</h1>
+                    <p>{totalCustomers}</p>
                     <p>{custDataPercentage}% Declined</p>
                 </div>
-
                 <div className="Card">
-                    <h1> Total Sales </h1>
+                    <h1>Total Sales</h1>
                     <p>Rs.{totalSales}</p>
-                    <p> {percentageValue}% Total Growth</p>
-                    <br/>
-                    <h2></h2>
+                    <p>{percentageValue}% Total Growth</p>
                 </div>
             </div>
 
             <div className="CardDatas">
                 <div className="Cards">
-                    <input type="search" id="searchbox" name="searchbox" placeholder="serach"/>
-
+                    <input type="search" id="searchbox" name="searchbox" placeholder="search" />
                 </div>
-
                 <div className="Cards">
                     <button onClick={addRow} disabled={isAddDisabled}>Add Row</button>
                 </div>
             </div>
 
-
             <div className="container">
                 <table className="tables2">
-
                     <thead>
-                    <tr>
-                        <td>Select Id</td>
-                        <td>Order Id</td>
-                        <td>Customer Name</td>
-                        <td>Product Name</td>
-                        <td>Quantity</td>
-                        <td>Rate</td>
-                        <td>Sales Value</td>
-                        <td>Date of Sales</td>
-                        <td>Sales Person</td>
-                        <td>Status</td>
-                    </tr>
+                        <tr>
+                            <td>Select Id</td>
+                            <td>Order Id</td>
+                            <td>Customer Name</td>
+                            <td>Product Name</td>
+                            <td>Quantity</td>
+                            <td>Rate</td>
+                            <td>Sales Value</td>
+                            <td>Date of Sales</td>
+                            <td>Sales Person</td>
+                            <td>Status</td>
+                        </tr>
                     </thead>
                     <tbody className="table-body">
-                    {rows.map((row) =>
-                        (
+                        {currentPageRows.map((row) => (
                             <tr key={row.orderId}>
-                                <td><input type="checkbox" checked={row.checked}
-                                           onChange={(e) => handleInputChange(row.orderId, e)} name="checked"/></td>
+                                <td><input type="checkbox" checked={row.checked} readOnly /></td>
                                 <td>{row.orderId}</td>
-                                <td><input type="text" value={row.customerName}
-                                           onChange={(e) => handleInputChange(row.orderId, e)} name="customerName"/>
-                                </td>
-                                <td><input type="text" value={row.productName}
-                                           onChange={(e) => handleInputChange(row.orderId, e)} name="productName"/></td>
-                                <td><input type="number" value={row.quantity}
-                                           onChange={(e) => handleInputChange(row.orderId, e)} name="quantity"/></td>
-                                <td><input type="number" value={row.rate}
-                                           onChange={(e) => handleInputChange(row.orderId, e)} name="rate"/></td>
+                                <td><input type="text" value={row.customerName} onChange={(e) => handleInputChange(row.orderId, e)} name="customerName" /></td>
+                                <td><input type="text" value={row.productName} onChange={(e) => handleInputChange(row.orderId, e)} name="productName" /></td>
+                                <td><input type="number" value={row.quantity} onChange={(e) => handleInputChange(row.orderId, e)} name="quantity" /></td>
+                                <td><input type="number" value={row.rate} onChange={(e) => handleInputChange(row.orderId, e)} name="rate" /></td>
                                 <td>{row.salesValue}</td>
-                                <td><input type="date" value={row.salesDate}
-                                           onChange={(e) => handleInputChange(row.orderId, e)} name="salesDate"/></td>
+                                <td><input type="date" value={row.salesDate} onChange={(e) => handleInputChange(row.orderId, e)} name="salesDate" /></td>
                                 <td>
-                                    <select value={row.salesPersonName}
-                                            onChange={(e) => handleInputChange(row.orderId, e)} name="salesPersonName">
+                                    <select value={row.salesPersonName} onChange={(e) => handleInputChange(row.orderId, e)} name="salesPersonName">
                                         <option value="">Select Sales Person</option>
-                                        {Array.isArray(salesPersons) && salesPersons.map(person => (
-                                            <option key={person.id} value={person.name}>{person.name}</option>))}
-                                    </select></td>
-                                <td><input type="text" value={row.status}
-                                           onChange={(e) => handleInputChange(row.orderId, e)} name="status"/></td>
+                                        {salesPersons.map(person => (
+                                            <option key={person.id} value={person.name}>{person.name}</option>
+                                        ))}
+                                    </select>
+                                </td>
+                                <td><input type="text" value={row.status} onChange={(e) => handleInputChange(row.orderId, e)} name="status" /></td>
                                 <td>
                                     <button className="btn btn-outline-primary modal-dialog-centered" id="saveBtn"
                                             onClick={() => saveData(row.orderId)}
                                             disabled={isSaveDisabled}>Save
                                     </button>
                                 </td>
-
                                 <td>
                                     <button className="delBtn" id="delBtn"
-                                            onClick={(deleteR) => deleteRow(row.orderId)}>Delete
+                                            onClick={() => deleteRow(row.orderId)}>Delete
                                     </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <div className="pagination">
-                <button onClick={() => handlePageChange('prev')} disabled={currentPage === 1}>Previous</button>
-                <span> Page{currentPage}</span>
-                <button onClick={() => handlePageChange('next')}
-                        disabled={currentPage >= Math.floor(rows.length - 1 / rowsPerPage) + 1}>Next
-                </button>
-            </div>
-            <div className="pagination2">
-                <button className="submitBtn" style={{alignContent: "center", alignItems: "center"}} type="submit"
-                        onClick={submiData}> Submit
-                </button>
-            </div>
-        </div>
-    )
-}
-
-export default SalesData
