@@ -1,75 +1,294 @@
-public boolean fileDecryption(String fileType, String fileName, String sessionDate, String fileKeyName, String decFileName, String extFileTxt) {
-    try {
-        log.info("into decryptFile -  ");
-        PropertiesConfiguration config = new PropertiesConfiguration("common.properties");
-        Path path = Paths.get(config.getProperty(DASHBOARD_PATH).toString() + "/" + fileKeyName);
-        log.info("path-");
-        byte[] data = Files.readAllBytes(path);
-        log.info("path- 2 ");
+import React, {useEffect, useState} from 'react';
+import saveAs from 'file-saver';
+import './style.css';
 
-        PrivateKey tcsPrivateKey = getPrivateKey(config.getProperty(DASHBOARD_PATH).toString() + "/" + "privateKey/PrivateKeyNew.der");
-        byte[] dec = decryptKeyFile(tcsPrivateKey, data);
+import axios from 'axios';
 
-        String str = new String(dec, StandardCharsets.UTF_8); // for UTF-8 encoding
-        String encryptFileHash = str.split("\\|\\|")[1];
+const SalesData = () => {
+    const [rows, setRows] = useState([]);
+    const [salesPersons, setSalesPersons] = useState([]);
+    const [nextId, setNextId] = useState(1);
+    const [isAddDisabled, setIsAddDisabled] = useState(false);
+    const [isSaveDisabled, setIsSaveDisabled] = useState(true);
+    const [currentPage, setcurrentPage] = useState(1);
+    const rowsPerPage = 6;
+    // For Calculate Previous Year Sale.
+    const previousYearSale = 2000;
+    // For Calculate Previous Year Customers
+    const prevCust = 50;
 
-        log.info("myField   : ");
-        log.info("encryptFileHash : ");
 
-        byte[] cipher = new byte[16];
-        ByteBuffer bb = ByteBuffer.wrap(dec);
-        bb.get(cipher, 0, cipher.length);
+    // Fetching API Data From URI
+    useEffect(() => {
 
-        // Extracting IV
-        byte[] byteArrCopyNew = Arrays.copyOfRange(dec, 64, dec.length);
+        axios.get('https://reqres.in/api/users?page=2')
+            .then(responce => {
+                if (Array.isArray(responce.data.data)) {
+                    const SalesPersonsNames = responce.data.data.map(person => ({
+                        id: person.id,
+                        name: `${person.first_name} ${person.last_name}`
+                    }));
+                    setSalesPersons(SalesPersonsNames);
+                }
+                console.log("Received Data :" + JSON.stringify(responce.data));
 
-        try {
-            decryptFile(config.getProperty(DASHBOARD_PATH).toString() + "/" + fileName,
-                    config.getProperty(DASHBOARD_PATH).toString() + "/" + decFileName, cipher, byteArrCopyNew);
+            })
+            .catch(error => {
+                alert("error while fetching api data :"+error);
+            })
+    }, []);
 
-            log.info("after decryptFilev fn ");
-            String decryptFileHash = getFileHash(config.getProperty(DASHBOARD_PATH).toString() + "/" + decFileName);
-            log.info("Input (Hex) - decryptFileHash - :");
 
-            if (encryptFileHash.equals(decryptFileHash)) {
-                log.info("Hash Match");
-            } else {
-                log.info("Hash Does Not Match");
-            }
 
-            log.info("after unzip ascii files");
-            gunzipIt(decFileName, extFileTxt);
-            log.info("Aftere Gz extraction ");
-        } catch (FileNotFoundException e) {
-            log.error("FileNotFound Exception Occurred");
-            return false;
-        } catch (IOException e) {
-            log.error("IOException Occurred");
-            return false;
-        } catch (InvalidKeySpecException e) {
-            log.error("InvalidKeySpecException Occurred");
-            return false;
-        } catch (NoSuchPaddingException e) {
-            log.error("NoSuchPaddingException Occurred");
-            return false;
-        } catch (IllegalBlockSizeException e) {
-            log.error("IllegalBlockSizeException Occurred");
-            return false;
-        } catch (NoSuchAlgorithmException e) {
-            log.error("NoSuchAlgorithmException Occurred");
-            return false;
-        } catch (BadPaddingException e) {
-            log.error("BadPaddingException Occurred");
-            return false;
-        } catch (InvalidKeyException e) {
-            log.error("InvalidKeyException Occurred");
-            return false;
+    useEffect(() => {
+        const currentPageRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        console.log("Value of rowsPerPage :"+rowsPerPage);
+        console.log("Value of currentPage :"+currentPage);
+
+        console.log("** Value of currentPageRows :"+currentPageRows.length);
+        if (currentPageRows.length === 0) {
+            setIsAddDisabled(false);
+            console.log("inside Disabling setIsAddDisabled ::FALSE");
+        }
+        if(currentPageRows.length >0 && validateRows())
+        {
+            alert("value of Current Rows Length: "+currentPageRows.length +"Value of Validate Rows :"+validateRows())
+            // setIsSaveDisabled(true);
+            console.log("inside Disabling setIsAddDisabled ::TRUE");
         }
 
-    } catch (ConfigurationException | IOException e) {
-        log.error("Configuration or IO Exception Occurred");
-        return false;
+    }, [rows]);
+
+    const submiData = () => {
+        window.confirm(submiData())
+        const fileName = 'Sales_Data.txt';
+        const fileContent = JSON.stringify(rows, null, 2);
+        const blob = new Blob([fileContent], {type: 'text/plain;charset=utf-8'});
+        saveAs(blob, fileName);
     }
 
-    return true;
+    const addRow = () => {
+
+        const currentPageRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        if (!validateRows() && currentPageRows.length !== 0) {
+            alert("Please fill the all data Fields before adding new Row");
+            return;
+        }
+
+        if (currentPageRows.length >= rowsPerPage)
+            return;
+
+
+        // setRows(rows.concat({
+        setRows(prevRows => [...prevRows,
+            {
+                orderId: nextId,
+                checked: false,
+                customerName: '',
+                productName: '',
+                quantity: '',
+                rate: '',
+                salesValue: '',
+                salesDate: '',
+                salesPersonName: '',
+                status: '',
+            }]);
+        setNextId(prevNextId => prevNextId + 1);
+        setIsAddDisabled(true);
+    };
+
+    const deleteRow = (orderId) => {
+        const updatedRows = rows.filter(row => row.orderId !== orderId);
+        setRows(updatedRows);
+        setIsAddDisabled(updatedRows.length === 0 || !validateRows(updatedRows));
+    };
+
+
+    const handleInputChange = (orderId, event) => {
+        const {name, value} = event.target;
+        setRows(prevRows => prevRows.map(row => {
+            if (row.orderId === orderId) {
+                const updatedRow = {
+                    ...row
+                };
+                updatedRow[name] = value;
+                if (name === "quantity" || name === "rate") {
+                    const quantity = name === "quantity" ? parseFloat(value) : parseFloat(row.quantity);
+                    const rate = name === "rate" ? parseFloat(value) : parseFloat(row.rate);
+                    updatedRow.salesValue = (quantity * rate).toFixed(2);
+                }
+                // updatedRow[name] = value;
+                return updatedRow;
+            }
+            return row;
+        }));
+        setIsAddDisabled(!validateRows());
+        // setIsSaveDisabled(false);
+
+    };
+
+    const validateRows = () => {
+        const curretPageRows = rows.slice(
+            (currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+        for (let row of curretPageRows) {
+            if (!row.customerName || !row.productName || !row.quantity || !row.rate || !row.salesDate || !row.salesPersonName || !row.status) {
+                console.log("!row.customerName  :" + !row.customerName);
+                console.log("!row.productName  :" + !row.productName);
+                console.log("!row.quantity  :" + !row.quantity);
+                console.log("!row.rate  :" + !row.rate);
+                console.log("!row.salesDate  :" + !row.salesDate);
+                console.log("!row.salesPersonName  :" + !row.salesPersonName);
+                console.log("!row.status  :" + !row.status);
+                setIsSaveDisabled(true);
+                return false;
+            } else if (rows.customerName == null || rows.productName == null ||
+                rows.quantity == null || rows.rate == null ||
+                rows.salesValue == null || rows.salesDate == null ||
+                rows.salesPersonName == null) {
+                setIsSaveDisabled(true);
+                return false;
+            }
+        }
+        setIsSaveDisabled(false);
+        return true;
+    };
+
+    const handlePageChange = (direction) => {
+        if (direction === 'next' && currentPage > 1) {
+            setcurrentPage(currentPage + 1);
+        } else if (direction === 'prev' && currentPage > 1) {
+            setcurrentPage(currentPage - 1);
+        }
+
+    };
+    const currentPageRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+    const saveData = () => {
+        alert("Data Saved Successfully");
+    }
+    const calculateTotalSales = () => {
+        return rows.reduce((total, row) => total + (parseFloat(row.salesValue) || 0), 0);
+    };
+
+    const calculateTotalCustomers = () => {
+        const customersQty = new Set(rows.map(row => row.customerName));
+        return customersQty.size;
+    };
+
+    const totalCustomers = calculateTotalCustomers();
+
+    const custDataPercentage = ((totalCustomers - prevCust) / prevCust * 100).toFixed(2);
+
+
+    const totalSales = calculateTotalSales();
+    const percentageValue = ((totalSales - previousYearSale) / previousYearSale * 100).toFixed(2);
+
+    return (
+        <div className="section">
+            <div className="CardData">
+                <div className="Card">
+                    <h1> Total Customers </h1>
+                    <p> 1500</p>
+                    <p>{custDataPercentage}% Declined</p>
+                </div>
+
+                <div className="Card">
+                    <h1> Total Sales </h1>
+                    <p>Rs.{totalSales}</p>
+                    <p> {percentageValue}% Total Growth</p>
+                    <br/>
+                    <h2></h2>
+                </div>
+            </div>
+
+            <div className="CardDatas">
+                <div className="Cards">
+                    <input type="search" id="searchbox" name="searchbox" placeholder="serach"/>
+
+                </div>
+
+                <div className="Cards">
+                    <button onClick={addRow} disabled={isAddDisabled}>Add Row</button>
+                </div>
+            </div>
+
+
+            <div className="container">
+                <table className="tables2">
+
+                    <thead>
+                    <tr>
+                        <td>Select Id</td>
+                        <td>Order Id</td>
+                        <td>Customer Name</td>
+                        <td>Product Name</td>
+                        <td>Quantity</td>
+                        <td>Rate</td>
+                        <td>Sales Value</td>
+                        <td>Date of Sales</td>
+                        <td>Sales Person</td>
+                        <td>Status</td>
+                    </tr>
+                    </thead>
+                    <tbody className="table-body">
+                    {rows.map((row) =>
+                        (
+                            <tr key={row.orderId}>
+                                <td><input type="checkbox" checked={row.checked}
+                                           onChange={(e) => handleInputChange(row.orderId, e)} name="checked"/></td>
+                                <td>{row.orderId}</td>
+                                <td><input type="text" value={row.customerName}
+                                           onChange={(e) => handleInputChange(row.orderId, e)} name="customerName"/>
+                                </td>
+                                <td><input type="text" value={row.productName}
+                                           onChange={(e) => handleInputChange(row.orderId, e)} name="productName"/></td>
+                                <td><input type="number" value={row.quantity}
+                                           onChange={(e) => handleInputChange(row.orderId, e)} name="quantity"/></td>
+                                <td><input type="number" value={row.rate}
+                                           onChange={(e) => handleInputChange(row.orderId, e)} name="rate"/></td>
+                                <td>{row.salesValue}</td>
+                                <td><input type="date" value={row.salesDate}
+                                           onChange={(e) => handleInputChange(row.orderId, e)} name="salesDate"/></td>
+                                <td>
+                                    <select value={row.salesPersonName}
+                                            onChange={(e) => handleInputChange(row.orderId, e)} name="salesPersonName">
+                                        <option value="">Select Sales Person</option>
+                                        {Array.isArray(salesPersons) && salesPersons.map(person => (
+                                            <option key={person.id} value={person.name}>{person.name}</option>))}
+                                    </select></td>
+                                <td><input type="text" value={row.status}
+                                           onChange={(e) => handleInputChange(row.orderId, e)} name="status"/></td>
+                                <td>
+                                    <button className="btn btn-outline-primary modal-dialog-centered" id="saveBtn"
+                                            onClick={() => saveData(row.orderId)}
+                                            disabled={isSaveDisabled}>Save
+                                    </button>
+                                </td>
+
+                                <td>
+                                    <button className="delBtn" id="delBtn"
+                                            onClick={(deleteR) => deleteRow(row.orderId)}>Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <div className="pagination">
+                <button onClick={() => handlePageChange('prev')} disabled={currentPage === 1}>Previous</button>
+                <span> Page{currentPage}</span>
+                <button onClick={() => handlePageChange('next')}
+                        disabled={currentPage >= Math.floor(rows.length - 1 / rowsPerPage) + 1}>Next
+                </button>
+            </div>
+            <div className="pagination2">
+                <button className="submitBtn" style={{alignContent: "center", alignItems: "center"}} type="submit"
+                        onClick={submiData}> Submit
+                </button>
+            </div>
+        </div>
+    )
 }
+
+export default SalesData
