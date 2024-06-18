@@ -48,6 +48,10 @@ const SalesData = () => {
     }, [rows]);
 
     const submiData = () => {
+        if (!validateRows()) {
+            alert("Please fill all data fields before submitting");
+            return;
+        }
         const fileName = 'Sales_Data.txt';
         const fileContent = JSON.stringify(rows, null, 2);
         const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
@@ -75,6 +79,7 @@ const SalesData = () => {
             salesDate: '',
             salesPersonName: '',
             status: '',
+            isEditing: true, // Add isEditing flag for each row
         }]);
         setNextId(prevNextId => prevNextId + 1);
         setIsAddDisabled(true);
@@ -127,7 +132,22 @@ const SalesData = () => {
     const currentPageRows = rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
     const saveData = (orderId) => {
+        setRows(prevRows => prevRows.map(row => {
+            if (row.orderId === orderId) {
+                row.isEditing = false; // Disable editing after saving
+            }
+            return row;
+        }));
         alert(`Data for Order ID ${orderId} Saved Successfully`);
+    }
+
+    const editData = (orderId) => {
+        setRows(prevRows => prevRows.map(row => {
+            if (row.orderId === orderId) {
+                row.isEditing = true; // Enable editing
+            }
+            return row;
+        }));
     }
 
     const calculateTotalSales = () => {
@@ -183,6 +203,7 @@ const SalesData = () => {
                             <td>Date of Sales</td>
                             <td>Sales Person</td>
                             <td>Status</td>
+                            <td>Actions</td> {/* Add a column for actions */}
                         </tr>
                     </thead>
                     <tbody className="table-body">
@@ -190,28 +211,85 @@ const SalesData = () => {
                             <tr key={row.orderId}>
                                 <td><input type="checkbox" checked={row.checked} readOnly /></td>
                                 <td>{row.orderId}</td>
-                                <td><input type="text" value={row.customerName} onChange={(e) => handleInputChange(row.orderId, e)} name="customerName" /></td>
-                                <td><input type="text" value={row.productName} onChange={(e) => handleInputChange(row.orderId, e)} name="productName" /></td>
-                                <td><input type="number" value={row.quantity} onChange={(e) => handleInputChange(row.orderId, e)} name="quantity" /></td>
-                                <td><input type="number" value={row.rate} onChange={(e) => handleInputChange(row.orderId, e)} name="rate" /></td>
+                                <td><input type="text" value={row.customerName} onChange={(e) => handleInputChange(row.orderId, e)} name="customerName" disabled={!row.isEditing} /></td>
+                                <td><input type="text" value={row.productName} onChange={(e) => handleInputChange(row.orderId, e)}
+                                                   name="productName" disabled={!row.isEditing} /></td>
+                                <td><input type="number" value={row.quantity} onChange={(e) => handleInputChange(row.orderId, e)} name="quantity" disabled={!row.isEditing} /></td>
+                                <td><input type="number" value={row.rate} onChange={(e) => handleInputChange(row.orderId, e)} name="rate" disabled={!row.isEditing} /></td>
                                 <td>{row.salesValue}</td>
-                                <td><input type="date" value={row.salesDate} onChange={(e) => handleInputChange(row.orderId, e)} name="salesDate" /></td>
+                                <td><input type="date" value={row.salesDate} onChange={(e) => handleInputChange(row.orderId, e)} name="salesDate" disabled={!row.isEditing} /></td>
                                 <td>
-                                    <select value={row.salesPersonName} onChange={(e) => handleInputChange(row.orderId, e)} name="salesPersonName">
+                                    <select value={row.salesPersonName} onChange={(e) => handleInputChange(row.orderId, e)} name="salesPersonName" disabled={!row.isEditing}>
                                         <option value="">Select Sales Person</option>
                                         {salesPersons.map(person => (
                                             <option key={person.id} value={person.name}>{person.name}</option>
                                         ))}
                                     </select>
                                 </td>
-                                <td><input type="text" value={row.status} onChange={(e) => handleInputChange(row.orderId, e)} name="status" /></td>
+                                <td><input type="text" value={row.status} onChange={(e) => handleInputChange(row.orderId, e)} name="status" disabled={!row.isEditing} /></td>
                                 <td>
-                                    <button className="btn btn-outline-primary modal-dialog-centered" id="saveBtn"
-                                            onClick={() => saveData(row.orderId)}
-                                            disabled={isSaveDisabled}>Save
-                                    </button>
+                                    {row.isEditing ? (
+                                        <button className="btn btn-outline-primary modal-dialog-centered" id="saveBtn"
+                                                onClick={() => saveData(row.orderId)}
+                                                disabled={isSaveDisabled}>Save
+                                        </button>
+                                    ) : (
+                                        <button className="btn btn-outline-primary modal-dialog-centered" id="editBtn"
+                                                onClick={() => editData(row.orderId)}>Edit
+                                        </button>
+                                    )}
                                 </td>
                                 <td>
-                                    <button className="delBtn" id="delBtn"
+                                    <button className="btn btn-outline-danger modal-dialog-centered" id="delBtn"
                                             onClick={() => deleteRow(row.orderId)}>Delete
                                     </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="pagination">
+                <button onClick={() => handlePageChange('prev')} disabled={currentPage === 1}>Previous</button>
+                <button onClick={() => handlePageChange('next')} disabled={currentPage >= Math.ceil(rows.length / rowsPerPage)}>Next</button>
+            </div>
+
+            <div className="submit-section">
+                <button onClick={submiData} disabled={isSubmitDisabled}>Submit</button>
+            </div>
+        </div>
+    );
+};
+
+export default SalesData;
+
+
+
+
+             .btn {
+    padding: 5px 10px;
+    margin: 5px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#saveBtn {
+    background-color: green;
+    color: white;
+}
+
+#editBtn {
+    background-color: blue;
+    color: white;
+}
+
+#delBtn {
+    background-color: red;
+    color: white;
+}
+
+#saveBtn:disabled, #editBtn:disabled, #delBtn:disabled {
+    background-color: gray;
+    cursor: not-allowed;
+}
