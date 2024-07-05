@@ -1,33 +1,50 @@
-Here's a sample email to inform your manager about the delay in project task completion:
+To return a `List<UserLogin>` inside the `getUserDetails` method, you need to modify the method's return type to `ResponseEntity<List<UserLogin>>` and adjust the implementation accordingly. Here's how you can do it:
 
----
+1. Change the return type of the method.
+2. Adjust the `ResponseVO` to handle a list of `UserLogin` objects.
+3. Make sure the `userService.findUsersDetailsByCapacity(capability)` returns a `List<UserLogin>`.
 
-**Subject:** Update on Project Task Completion and Delay
+Here's the updated code:
 
-**Dear [Manager's Name],**
+```java
+@RequestMapping("/index")
+public ResponseEntity<List<UserLogin>> getUserDetails(@RequestParam("capability") String capability) {
+    ResponseVO<List<UserLogin>> responseVO = new ResponseVO<>();
+    
+    try {
+        List<UserLogin> userLoginList = userService.findUsersDetailsByCapacity(capability);
+        
+        responseVO.setStatusCode(HttpStatus.OK.value());
+        responseVO.setMessage("Data fetched successfully");
+        responseVO.setResult(userLoginList);
+    } catch (Exception e) {
+        System.out.println("Error: " + e.getMessage());
+        responseVO.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        responseVO.setMessage("An error occurred");
+    }
+    
+    return new ResponseEntity<>(responseVO, HttpStatus.OK);
+}
+```
 
-I hope this message finds you well. I am writing to update you on the current status of our project tasks and to inform you of the reasons for the delay in our project timeline.
+Ensure that your `ResponseVO` class can handle a list of `UserLogin` objects. If not, you'll need to adjust it like so:
 
-As of today, we have completed 2 tasks, while the rest are still in progress. Unfortunately, we have encountered several challenges that have impacted our ability to meet the original project timeline. The key issues are as follows:
+```java
+public class ResponseVO<T> {
+    private int statusCode;
+    private String message;
+    private T result;
+    
+    // getters and setters
+}
+```
 
-1. **Node.js Package Download Issues:** Every system in our setup experienced issues with downloading necessary Node.js packages. This problem has caused significant delays as it affected all team members.
+Make sure your service method `findUsersDetailsByCapacity` returns a `List<UserLogin>`:
 
-2. **Maven Dependency Download Issues:** We faced problems with downloading Maven dependencies due to proxy server issues. Resolving these configuration problems took 2-3 days on each team member’s system, further delaying our progress.
+```java
+public List<UserLogin> findUsersDetailsByCapacity(String capability) {
+    // Your implementation to fetch the list of UserLogin based on capability
+}
+```
 
-3. **Team Member Availability:** Some of our team members have been on leave, which has impacted our overall productivity and contributed to the delays.
-
-4. **Incomplete Project Base Setup:** The project base setup is still not 100% completed. This has had a cascading effect on our ability to progress with other tasks that depend on the base setup being finalized.
-
-I understand the importance of adhering to our project timeline and apologize for any inconvenience this may have caused. We are working diligently to resolve these issues and expedite the remaining tasks. I will provide regular updates on our progress and any further challenges we may encounter.
-
-Thank you for your understanding and support.
-
-**Best regards,**
-
-[Your Name]  
-[Your Position]  
-[Your Contact Information]
-
----
-
-Feel free to adjust the email as needed.
+This way, the `getUserDetails` method will correctly return a list of `UserLogin` objects wrapped in a `ResponseEntity`.
