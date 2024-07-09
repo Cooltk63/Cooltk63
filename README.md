@@ -1,50 +1,42 @@
-To return a `List<UserLogin>` inside the `getUserDetails` method, you need to modify the method's return type to `ResponseEntity<List<UserLogin>>` and adjust the implementation accordingly. Here's how you can do it:
+The error message you're encountering, `SunCertPathBuilderException: unable to find valid certification path to requested target`, indicates that Java is unable to establish a secure connection because it does not trust the certificate chain presented by the Maven repository server.
 
-1. Change the return type of the method.
-2. Adjust the `ResponseVO` to handle a list of `UserLogin` objects.
-3. Make sure the `userService.findUsersDetailsByCapacity(capability)` returns a `List<UserLogin>`.
+Here's a checklist of steps you can take to resolve this issue:
 
-Here's the updated code:
+1. **Verify Java Installation**:
+   Ensure that the correct version of Java (Java 22) is installed and being used by your project.
 
-```java
-@RequestMapping("/index")
-public ResponseEntity<List<UserLogin>> getUserDetails(@RequestParam("capability") String capability) {
-    ResponseVO<List<UserLogin>> responseVO = new ResponseVO<>();
-    
-    try {
-        List<UserLogin> userLoginList = userService.findUsersDetailsByCapacity(capability);
-        
-        responseVO.setStatusCode(HttpStatus.OK.value());
-        responseVO.setMessage("Data fetched successfully");
-        responseVO.setResult(userLoginList);
-    } catch (Exception e) {
-        System.out.println("Error: " + e.getMessage());
-        responseVO.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        responseVO.setMessage("An error occurred");
-    }
-    
-    return new ResponseEntity<>(responseVO, HttpStatus.OK);
-}
-```
+2. **Import the Certificate Correctly**:
+   Double-check that the certificate for the Maven repository has been correctly imported into the Java `cacerts` file.
 
-Ensure that your `ResponseVO` class can handle a list of `UserLogin` objects. If not, you'll need to adjust it like so:
+   ```sh
+   keytool -import -alias mavenRepo -file /path/to/repo-certificate.crt -keystore $JAVA_HOME/lib/security/cacerts
+   ```
 
-```java
-public class ResponseVO<T> {
-    private int statusCode;
-    private String message;
-    private T result;
-    
-    // getters and setters
-}
-```
+   Make sure you use the correct path to your Java `cacerts` file and the alias name.
 
-Make sure your service method `findUsersDetailsByCapacity` returns a `List<UserLogin>`:
+3. **Check Environment Variables**:
+   Ensure the `JAVA_HOME` environment variable points to the correct Java installation.
 
-```java
-public List<UserLogin> findUsersDetailsByCapacity(String capability) {
-    // Your implementation to fetch the list of UserLogin based on capability
-}
-```
+4. **Maven Settings**:
+   Ensure your Maven settings are correctly configured to use the right proxy settings and trust store.
 
-This way, the `getUserDetails` method will correctly return a list of `UserLogin` objects wrapped in a `ResponseEntity`.
+   Edit `settings.xml` located in `{MAVEN_HOME}/conf` or `{USER_HOME}/.m2/` and configure the `<proxies>` section if you are behind a corporate proxy.
+
+5. **Proxy Configuration**:
+   If you're behind a corporate proxy, make sure your proxy settings are properly configured in both the Maven settings and in your system environment variables.
+
+6. **Clear Maven Cache**:
+   Sometimes clearing the Maven cache can help resolve such issues.
+
+   ```sh
+   mvn clean install
+   ```
+
+7. **Use `-Djavax.net.ssl.trustStore` JVM Argument**:
+   Run Maven with the `-Djavax.net.ssl.trustStore` and `-Djavax.net.ssl.trustStorePassword` arguments to specify the custom trust store.
+
+   ```sh
+   mvn clean install -Djavax.net.ssl.trustStore=/path/to/your/truststore.jks -Djavax.net.ssl.trustStorePassword=yourPassword
+   ```
+
+If none of these steps resolve the issue, there might be a deeper configuration problem. You may need to check with your organization's IT department to ensure all network configurations and certificates are correctly set up.
