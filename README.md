@@ -1,74 +1,66 @@
-package com.crs.cs.JwtAuth;
+package com.crs.cs.Service;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import org.springframework.stereotype.Component;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
+import com.crs.cs.Model.User;
+import com.crs.cs.Model.UserMaster;
+import com.crs.cs.Repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
 import java.util.logging.Logger;
 
-@Component
-public class JwtUtil {
+@Service
+public class CustomUserDetailsService implements UserDetailsService {
 
-    static Logger log = Logger.getLogger(JwtUtil.class.getName());
+    @Autowired
+     UserRepository userRepository;
 
-    private final String SECRET_KEY = "thisIsTheMostSecretKeytcs123springframeworkspringframeworkspringframework";
+    static Logger log = Logger.getLogger(CustomUserDetailsService.class.getName());
 
-    public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        log.info("Inside Load dby User ");
+
+	// Here we write our service method to get the user from Backend
+//        User user = userRepository.findByUsername(username);
+
+       
+
+
+        User user=new User();
+        user.setUsername("Tushar");
+        user.setPassword("Tk123");
+//        user.setEnabled(true);
+
+        log.info("User :"+user);
+//        log.info("User :"+ user.getUsername().equalsIgnoreCase(username));
+        if (user == null || !user.getUsername().equalsIgnoreCase(username)) {
+            return null;
+//
+        }
+        /*return new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(),
+                user.isEnabled(), true, true, true, new ArrayList<>()); // Adjust the authorities as needed*/
+
+        return new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(),
+                true, true, true, true, new ArrayList<>()); // Adjust the authorities as needed
     }
-
-    private Boolean isTokenExpired(String token) {
-        log.info(" <==========isTokenExpired Function Called ==========>:: ");
-        return extractExpiration(token).before(new Date());
-    }
-
-    public Date extractExpiration(String token) {
-
-        log.info(" <==========extractExpiration Function Called ==========>:: ");
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        log.info(" <==========extractClaim Function Called ==========>:: ");
-        return claimsResolver.apply(claims);
-    }
-
-    private Claims extractAllClaims(String token) {
-        log.info(" <==========extractAllClaims Function Called ==========>:: ");
-        System.out.println("Calling the extractAllClaims Method @@@@@@");
-//        String GetUserName=CalimuserName(token);
-//        System.out.println("Claim  UserName:"+GetUserName);
-        return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
-    }
-
-
-    public String generateToken(String username) {
-        log.info("<==========GenerateToken Function Called ==========>::  ");
-
-
-//        Here We Have to Put User Details Inside the Token
-        Map<String, Object> claims = new HashMap<>();
-        String Address = "SBI GITC";
-        String branch = "SBI GITC";
-        claims.put("userName", username);
-        claims.put("address", Address);
-        claims.put("branch", branch);
-
-
-        return Jwts.builder().setClaims(claims).setSubject(username).setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10))
-                .signWith(SignatureAlgorithm.HS256, SECRET_KEY).compact();
-    }
-
-    public Boolean validateToken(String token, String username) {
-        log.info(" <==========validateToken Function Called ==========>:: ");
-        final String usernameFromToken = extractUsername(token);
-        return (usernameFromToken.equals(username) && !isTokenExpired(token));
+    
+    
+    public UserMaster loadUserById(Long id) {
+        UserMaster userMaster=userRepository.findAllById(id);
+        
+        if(userMaster== null || userMaster.getPf_number() !=id)
+        {
+            System.out.println("No Data Received in UserMaster");
+            return  null;
+        }
+        return new org.springframework.security.core.userdetails.User(userMaster.getFirst_name(), userMaster.getMiddle_name(), userMaster.getLast_name(),userMaster.getUser_role(),
+                , true, true, true, new ArrayList<>()); // Adjust the authorities as needed
+        
     }
 }
+
