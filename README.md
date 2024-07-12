@@ -1,55 +1,92 @@
- public String IsTokenValidate(HttpServletRequest request,String token)
-    {
+import org.springframework.stereotype.Component;
 
-        String extractPfNumber= extractPfNumber(token);
-        String extractFirstName= extractFirstName(token);
-        String extractLastName= extractLastName(token);
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
-        System.out.println("@@@ extractPfNumber values ::: "+extractPfNumber);
-        System.out.println("@@@ extractFirstName values ::: "+extractFirstName);
-        System.out.println("@@@ extractLastName values ::: "+extractLastName);
+@Component
+public class CustomHeaderFilter implements Filter {
 
-        final String authorizationHeader = request.getHeader("Authorization");
-
-        String username = null;
-        String jwt = null;
-        String requestResult="Token is invalid";
-
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer")) {
-
-            System.out.println("inside filter IF ");
-            jwt = authorizationHeader.substring(7);
-            try {
-                username = extractUsername(jwt);
-            } catch (ExpiredJwtException e) {
-                System.out.println("JWT Token has expired");
-            } catch (Exception e) {
-                System.out.println("Error while extracting username from JWT");
-            }
-        }
-
-        request.setAttribute("token", "Invalid");
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-            System.out.println("Inside username != null ");
-
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-
-            System.out.println("Loading loadUserByUsername :"+username);
-
-            if (validateToken(jwt, userDetails.getUsername())) {
-
-                System.out.println("Inside ValidateToken ::::"+userDetails.getUsername());
-
-                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                usernamePasswordAuthenticationToken
-                        .setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
-
-//                request.setAttribute("token", "valid");
-                requestResult="Token is valid";
-            }
-        }
-        return requestResult;
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+        // Initialization code, if needed
     }
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        HttpServletResponse httpResponse = (HttpServletResponse) response;
+        
+        // Add CORS headers
+        httpResponse.setHeader("Access-Control-Allow-Origin", "*");
+        httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        httpResponse.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        
+        // Add other custom headers
+        httpResponse.setHeader("X-Custom-Header", "value");
+        
+        chain.doFilter(request, response);
+    }
+
+    @Override
+    public void destroy() {
+        // Cleanup code, if needed
+    }
+}
+xxxxxx
+
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class FilterConfig {
+
+    @Bean
+    public FilterRegistrationBean<CustomHeaderFilter> customHeaderFilter() {
+        FilterRegistrationBean<CustomHeaderFilter> registrationBean = new FilterRegistrationBean<>();
+        
+        registrationBean.setFilter(new CustomHeaderFilter());
+        registrationBean.addUrlPatterns("/*"); // Apply filter to all URLs
+        
+        return registrationBean;
+    }
+}
+
+xxxxx
+
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+
+@Configuration
+public class GlobalCorsConfig {
+
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        
+        config.setAllowCredentials(true);
+        config.addAllowedOrigin("*"); // Allow all origins
+        config.addAllowedHeader("*"); // Allow all headers
+        config.addAllowedMethod("*"); // Allow all methods
+        
+        source.registerCorsConfiguration("/**", config);
+        
+        return new CorsFilter(source);
+    }
+}
+
+xxxxxx
+
+
+
