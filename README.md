@@ -23,7 +23,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class LoginFilter implements Filter {
 
     private static Map<Integer, String> urlMap = new HashMap<>();
-    private static final Logger log = Logger.getLogger(LoginFilter.class);
+    private static final  Logger log = Logger.getLogger(LoginFilter.class);
     private static ReentrantLock lock = null;
     private static String userId, userSessionId, currentUserSessionId;
 
@@ -32,75 +32,108 @@ public class LoginFilter implements Filter {
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        // Initialization logic if needed
+//        log.info("Inside Login Filter INIT");
+//        Filter.super.init(filterConfig);
     }
 
     @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
-            throws IOException, ServletException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+        //log.info("Inside Login DO FILTER <><START><>");
+
+        // Step 1
         if (null == lock) {
             lock = new ReentrantLock();
         }
 
+        // Step 2 & Step 3
         HttpServletRequest httpRequest = (HttpServletRequest) servletRequest;
         HttpServletResponse httpResponse = (HttpServletResponse) servletResponse;
+        ////////////////////////////
+
+        httpRequest.getSession().getMaxInactiveInterval();
+        //log.info("Time to Logout : ");
 
         String requestURL = httpRequest.getRequestURI();
-        if (requestURL.endsWith(".js") || requestURL.contains(".css") || requestURL.endsWith(".jpg") || requestURL.endsWith(".png")) {
+        if (requestURL.endsWith("js") || requestURL.contains(".css") || requestURL.endsWith(".jpg") || requestURL.endsWith(".png")) {
             filterChain.doFilter(servletRequest, servletResponse);
-            return;
         }
 
+        ////////////////////////
+        //log.info("@@  Start");
         httpResponse.setHeader("cache-control", "no-cache, no-store, must-revalidate");
         httpResponse.setHeader("pragma", "no-cache");
         httpResponse.setDateHeader("expires", -1);
         httpResponse.setHeader("X-Content-Type-Options", "nosniff");
         httpResponse.setHeader("X-Frame-Options", "DENY");
+        //log.info("@@ END");
+        // Step 4
 
-        HttpSession session = httpRequest.getSession(false);
-        if (session != null && session.getAttribute(CommonConstants.USER_ID) != null) {
-            userId = session.getAttribute(CommonConstants.USER_ID).toString();
+        // If Session is not NULL then verify DB & Current Session ID
+        if (httpRequest.getSession() != null && httpRequest.getSession().getAttribute(CommonConstants.USER_ID) != null) {
+            //log.info("INSIDE ><><><>< If Session is not NULL then verify DB & Current Session ID ><><><><");
+            userId = httpRequest.getSession().getAttribute(CommonConstants.USER_ID).toString();
+            //log.info("UserID at LoginFilter Session ! NULL :" + userId);
             try {
+                //<><>Getting Stored User Session ID from DB
                 userSessionId = getUserSessionID(userId, lock);
+                //log.info(" @@ Session ID from DB :" + userSessionId);
+
             } catch (SQLException e) {
-                log.error("SQL Exception Occurred: " + e.getMessage());
+                log.error("SQL Exception Occurred"+ " : " + e.getMessage());
             }
 
-            currentUserSessionId = session.getAttribute(CommonConstants.USER_SESSION_ID).toString();
 
+            //<><>Getting Current User SessionID from HTTP Session
+            currentUserSessionId = httpRequest.getSession().getAttribute(CommonConstants.USER_SESSION_ID).toString();
+            //log.info("Current Login User Session ID Is: " + currentUserSessionId);
+
+
+
+            //Comparing DB SessionID with Current Login SessionID
+            // *** IF Different Session ID for Current SessionID & DB Stored SessionID then Logout User ***
             if (userSessionId != null && currentUserSessionId != null && !userSessionId.equals(currentUserSessionId)) {
                 log.info("@@ Duplicate Session Detected ..!");
+                // DB & HTTP Session ID Matched Terminating Session
                 terminateUserSession(httpRequest, httpResponse);
-                return;
-            } else if (userSessionId == null || currentUserSessionId == null) {
+                //log.info("@@ Duplicate user session has been terminated.");
+            } else if (userSessionId == null ||  currentUserSessionId == null) {
                 log.info("db session null!");
                 terminateUserSession(httpRequest, httpResponse);
-                return;
             }
+            // log.info("OUTSIDE ><><><>< DB & LOCAL Session ID Compare ><><><><");
 
             // Check user role in the URL
-            String userRole = (String) session.getAttribute(CommonConstants.USER_ROLE);
-            if (!isAuthorized(requestURL, userRole)) {
+            String userRole = httpRequest.getSession().getAttribute(CommonConstants.USER_ROLE).toString();
+            String currentURL = httpRequest.getRequestURI();
+
+            if (requestURL.contains("Security") || requestURL.contains("logout") && isAuthorized(currentURL, userRole)) {
+                log.info("@@ Not authorized ..!");
                 httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "You do not have permission to access this resource.");
                 return;
+            }else {
+                log.info("@@ User logged in!");
             }
-        } else {
-            httpResponse.sendRedirect("http://localhost:8001/");
-            return;
-        }
 
+
+        }
+        //log.info("Exit from Login Filter <><END><>");
         filterChain.doFilter(servletRequest, servletResponse);
     }
 
+
     private boolean isAuthorized(String requestURL, String userRole) {
         // Check if the URL contains the role identifier
-        if (("A".equals(userRole) && !requestURL.contains("admin")) || ("U".equals(userRole) && !requestURL.contains("user"))) {
-            return false;
-        }
-        return true;
+        log.info(" ADMIN EQ ::"+"A".equals(userRole));
+        log.info(" Contains Admin ::"+requestURL.contains("Admin"));
+        log.info(" USER EQ ::"+"D".equals(userRole));
+        log.info("Contains DashUser ::"+requestURL.contains("DashUser"));
+        return ("A".equals(userRole) && requestURL.contains("Admin")) || ("D".equals(userRole) && requestURL.contains("DashUser"));
     }
 
+
+    // Getting User Session ID TimeStamp Status from DB
     private String getUserSessionID(String userID, ReentrantLock lock) throws SQLException {
+        //log.info("<><><> UserID Inside getUserSessionID Method:" + "USER ID FOR QUERY :" + userID);
         Connection con = new DBConn().getConnectionFromJNDI();
         String sessionId = null;
         try {
@@ -111,9 +144,11 @@ public class LoginFilter implements Filter {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 sessionId = rs.getString(CommonConstants.LOGIN_TOKEN);
+                //log.info("DB Session ID :" + sessionId);
             }
             rs.close();
             con.close();
+
         } catch (SQLException e) {
             log.error(CommonConstants.SQL_EXCEPTION + " : " + e.getMessage());
         } finally {
@@ -129,20 +164,43 @@ public class LoginFilter implements Filter {
         return sessionId;
     }
 
+    //Terminating User Session
     private void terminateUserSession(HttpServletRequest request, HttpServletResponse response) {
+        //log.info("Inside the terminate");
         HttpSession session = request.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
-        try {
-            response.sendRedirect("http://localhost:8001/");
-        } catch (IOException e) {
-            log.error("IO Exception Occurred");
-        }
+
+            if (session != null) {
+                //log.info("Inside terminate User Session Method #SESSION NOT NULL#");
+                String userID = (String) session.getAttribute(CommonConstants.USER_ID);
+
+                if (userID != null) {
+                    //log.info("Inside terminate User Session Method #USERID NOT NULL#" +userID);
+                    //log.info("");
+                    session.invalidate();
+
+                }
+            } else {
+                //log.info("Inside Else ##Session is NULL ## ");
+                User userBean = new User();
+                userBean.setLoginFlag("N");
+            }
+
+            try {
+                //log.info("Redirecting to login from Filter");
+                response.sendRedirect("/../Security/logout");
+            } catch (IOException e) {
+                log.error("IO Exception Occurred ");
+            }
+
+
     }
 
+
     static {
+
         urlMap.put(1, "AdminUser");
         urlMap.put(2, "DashUser");
     }
+
+
 }
