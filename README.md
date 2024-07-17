@@ -1,149 +1,269 @@
-package utils;
+package com.crs.cs.JwtAuth;
 
-import com.tcs.bean.User;
-import com.tcs.service.LoginService;
-import org.apache.log4j.Logger;
+import com.crs.cs.Model.UserMaster;
+import com.crs.cs.Service.UserMasterServiceImpl;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
 
-import javax.servlet.*;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.io.UnsupportedEncodingException;
+import java.security.Key;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
+import java.util.logging.Logger;
 
-// @Author V1012297
-public class LoginFilter implements Filter {
+@Component
+public class JwtUtil {
 
-    private static Map<Integer, String> urlMap = new HashMap<>();
-    private static final Logger log = Logger.getLogger(LoginFilter.class);
-    private static ReentrantLock lock = null;
-    private static String userId, userSessionId, currentUserSessionId;
-
+    static Logger log = Logger.getLogger(JwtUtil.class.getName());
+    private final String SECRET_KEY = "thisIsTheMostSecretKeytcs123springframeworkspringframeworkspringframework";
     @Autowired
-    LoginService loginService;
+    private UserMasterServiceImpl userMasterServiceImpl;
 
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-        // Initialization logic if needed
+    //Algorithm algorithm
+
+//    public String extractUsername(String token) {
+//        return extractClaim(token, Claims::getSubject);
+//    }
+
+    private Boolean isTokenExpired(String token) {
+        log.info(" <==========isTokenExpired Function Called ==========>:: ");
+        return extractExpiration(token).before(new Date());
     }
 
-    @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
-            throws IOException, ServletException {
-        if (null == lock) {
-            lock = new ReentrantLock();
-        }
+    public Date extractExpiration(String token) {
 
-        HttpServletRequest httpRequest = (HttpServletRequest) servletRequest;
-        HttpServletResponse httpResponse = (HttpServletResponse) servletResponse;
+        log.info(" <==========extractExpiration Function Called ==========>:: ");
+        return extractClaim(token, Claims::getExpiration);
+    }
 
-        String requestURL = httpRequest.getRequestURI();
-        if (requestURL.endsWith(".js") || requestURL.contains(".css") || requestURL.endsWith(".jpg") || requestURL.endsWith(".png")) {
-            filterChain.doFilter(servletRequest, servletResponse);
-            return;
-        }
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        log.info(" <==========extractClaim Function Called ==========>:: ");
+        return claimsResolver.apply(claims);
+    }
 
-        httpResponse.setHeader("cache-control", "no-cache, no-store, must-revalidate");
-        httpResponse.setHeader("pragma", "no-cache");
-        httpResponse.setDateHeader("expires", -1);
-        httpResponse.setHeader("X-Content-Type-Options", "nosniff");
-        httpResponse.setHeader("X-Frame-Options", "DENY");
+    private Claims extractAllClaims(String token) {
+        log.info(" <==========extractAllClaims Function Called ==========>:: ");
+        System.out.println("Calling the extractAllClaims Method @@@@@@");
+//        String GetUserName=CalimuserName(token);
+//        System.out.println("Claim  UserName:"+GetUserName);
+        //Jwts.
+        return Jwts.parser().setSigningKey(SECRET_KEY).build().parseClaimsJws(token).getBody();
+//        return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
+    }
 
-        HttpSession session = httpRequest.getSession(false);
-        if (session != null && session.getAttribute(CommonConstants.USER_ID) != null) {
-            userId = session.getAttribute(CommonConstants.USER_ID).toString();
+
+    public String generateToken(UserMaster userMaster, String quarterYear, String circleCode) throws UnsupportedEncodingException {
+        log.info("<==========GenerateToken Function Called ==========>::  ");
+
+        String[] QFD = quarterYear.split("~");
+
+        // Added the login Users Details inside JWT Token
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("pf_number", userMaster.getPf());
+        claims.put("first_name", userMaster.getFirst_name());
+        claims.put("middle_name", userMaster.getMiddle_name());
+        claims.put("last_name", userMaster.getLast_name());
+        claims.put("branch_code", userMaster.getBranch_code());
+        claims.put("mobile_number", userMaster.getMobile_number());
+        claims.put("email_id", userMaster.getEmail_id());
+        claims.put("user_role", userMaster.getUserRole());
+        claims.put("status", userMaster.getStatus());
+        claims.put("created_dt", userMaster.getCreated_dt());
+        claims.put("created_by_fk", userMaster.getCreated_by_fk());
+        claims.put("quarter", QFD[0]);
+        claims.put("financial_year", QFD[1]);
+        claims.put("quarterEndDate", QFD[2]);
+        claims.put("previousYearDate", QFD[3]);
+        claims.put("previousQuarterDate", QFD[4]);
+        claims.put("circleCode", circleCode);
+
+
+        // Token Expires After 1 Hrs
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject("TOKEN")
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 1))
+                .signWith(SignatureAlgorithm.HS256, SECRET_KEY.getBytes("UTF-8")).compact();
+    }
+
+    public Boolean validateToken(String token, int PFID) {
+        log.info(" <==========validateToken Function Called ==========>:: ");
+        final int usernameFromToken = extractPfNumber(token);
+        return (usernameFromToken == PFID && !isTokenExpired(token));
+    }
+
+
+    public Map<String, Object> getTokenData(String token) {
+        Map<String, Object> tokenData = new HashMap<>();
+        tokenData.put("pf_number", extractPfNumber(token));
+        tokenData.put("first_name", extractFirstName(token));
+        tokenData.put("middle_name", extractMiddleName(token));
+        tokenData.put("last_name", extractLastName(token));
+        tokenData.put("branch_code", extractBranchCode(token));
+        tokenData.put("email_id", extractEmailId(token));
+        tokenData.put("user_role", extractUserRole(token));
+        tokenData.put("status", extractStatus(token));
+        tokenData.put("created_by_fk", extractCreatedByFk(token));
+        tokenData.put("created_dt", extractCreatedDt(token));
+        tokenData.put("quarter", extractQuarter(token));
+        tokenData.put("financial_year", extractFinancialYear(token));
+        tokenData.put("quarterEndDate", extractQuarterEndDate(token));
+        tokenData.put("previousYearDate", extractPreviousYearDate(token));
+        tokenData.put("previousQuarterDate", extractPreviousQuarterDate(token));
+        tokenData.put("circleCode", extractCircleCode(token));
+        return tokenData;
+    }
+
+
+    public String IsTokenValidate(HttpServletRequest request, String token) {
+
+        int extractPfNumber = extractPfNumber(token);
+        String extractFirstName = extractFirstName(token);
+        String extractLastName = extractLastName(token);
+
+        System.out.println("@@@ extractPfNumber values ::: " + extractPfNumber);
+        System.out.println("@@@ extractFirstName values ::: " + extractFirstName);
+        System.out.println("@@@ extractLastName values ::: " + extractLastName);
+
+        final String authorizationHeader = request.getHeader("Authorization");
+
+        int PF_Number = 0;
+        String jwt = null;
+        String requestResult = "Token is invalid";
+
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer")) {
+
+            System.out.println("inside filter IF ");
+            jwt = authorizationHeader.substring(7);
             try {
-                userSessionId = getUserSessionID(userId, lock);
-            } catch (SQLException e) {
-                log.error("SQL Exception Occurred: " + e.getMessage());
+                PF_Number = extractPfNumber(jwt);
+                System.out.println("PFID WE GET:" + PF_Number);
+            } catch (ExpiredJwtException e) {
+                System.out.println("JWT Token has expired");
+            } catch (Exception e) {
+                System.out.println("Error while extracting username from JWT");
             }
-
-            currentUserSessionId = session.getAttribute(CommonConstants.USER_SESSION_ID).toString();
-
-            if (userSessionId != null && currentUserSessionId != null && !userSessionId.equals(currentUserSessionId)) {
-                log.info("@@ Duplicate Session Detected ..!");
-                terminateUserSession(httpRequest, httpResponse);
-                return;
-            } else if (userSessionId == null || currentUserSessionId == null) {
-                log.info("db session null!");
-                terminateUserSession(httpRequest, httpResponse);
-                return;
-            }
-
-            String userRole = (String) session.getAttribute(CommonConstants.USER_ROLE);
-            if (requestURL.contains("/logout") || requestURL.contains("/Security")) {
-                filterChain.doFilter(servletRequest, servletResponse);
-                return;
-            }
-
-            if (!isAuthorized(requestURL, userRole)) {
-                log.info("@@ Not authorized ..!");
-                httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "You do not have permission to access this resource.");
-                return;
-            }
-        } else {
-            httpResponse.sendRedirect("http://localhost:8001/");
-            return;
         }
 
-        filterChain.doFilter(servletRequest, servletResponse);
-    }
+//        request.setAttribute("token", "Invalid");
+        if (PF_Number != 0 /*&& SecurityContextHolder.getContext().getAuthentication() == null*/) {
 
-    private boolean isAuthorized(String requestURL, String userRole) {
-        return ("A".equals(userRole) && requestURL.contains("Admin")) || ("D".equals(userRole) && requestURL.contains("DashUser"));
-    }
+            System.out.println("Inside username != null ");
 
-    private String getUserSessionID(String userID, ReentrantLock lock) throws SQLException {
-        Connection con = new DBConn().getConnectionFromJNDI();
-        String sessionId = null;
-        try {
-            String query = "select LOGIN_TOKEN from DM_LOGIN where LOGIN_USER= ?";
-            lock.lock();
-            PreparedStatement ps = con.prepareStatement(query);
-            ps.setString(1, userID);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                sessionId = rs.getString(CommonConstants.LOGIN_TOKEN);
+//            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+
+            UserMaster userMaster = this.userMasterServiceImpl.getCustomUserData(PF_Number);
+
+            System.out.println("Loading loadUserByUsername :" + PF_Number);
+
+            if (validateToken(jwt, userMaster.getPf())) {
+
+                System.out.println("Inside ValidateToken ::::" + userMaster.getPf());
+
+                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(userMaster, null);
+                usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+
+//                request.setAttribute("token", "valid");
+                requestResult = "Token is valid";
             }
-            rs.close();
-            con.close();
-        } catch (SQLException e) {
-            log.error(CommonConstants.SQL_EXCEPTION + " : " + e.getMessage());
-        } finally {
-            if (null != con) {
-                try {
-                    con.close();
-                } catch (SQLException e) {
-                    log.error(CommonConstants.SQL_EXCEPTION + " : " + e.getMessage());
-                }
-            }
-            lock.unlock();
         }
-        return sessionId;
+        return requestResult;
     }
 
-    private void terminateUserSession(HttpServletRequest request, HttpServletResponse response) {
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
-        try {
-            response.sendRedirect("http://localhost:8001/");
-        } catch (IOException e) {
-            log.error("IO Exception Occurred");
-        }
+
+    // Extract the Users PfNumber from JWt Token
+    public int extractPfNumber(String token) {
+        return extractClaim(token, claims -> claims.get("pf_number", Integer.class));
     }
 
-    static {
-        urlMap.put(1, "AdminUser");
-        urlMap.put(2, "DashUser");
+    // Extract the Users FirstName from JWt Token
+    public String extractFirstName(String token) {
+        return extractClaim(token, claims -> claims.get("first_name", String.class));
     }
+
+    // Extract the Users LastName from JWt Token
+    public String extractLastName(String token) {
+        return extractClaim(token, claims -> claims.get("last_name", String.class));
+    }
+
+    // Extract the Users MiddleName from JWt Token
+    public String extractMiddleName(String token) {
+        return extractClaim(token, claims -> claims.get("middle_name", String.class));
+    }
+
+    // Extract the Users BranchCode from JWt Token
+    public String extractBranchCode(String token) {
+        return extractClaim(token, claims -> claims.get("branch_code", String.class));
+    }
+
+    // Extract the Users extractEmailId from JWt Token
+    public String extractEmailId(String token) {
+        return extractClaim(token, claims -> claims.get("email_id", String.class));
+    }
+
+    // Extract the Users extractUserRole from JWt Token
+    public String extractUserRole(String token) {
+        return extractClaim(token, claims -> claims.get("user_role", String.class));
+    }
+
+    // Extract the Users extractStatus from JWt Token
+    public String extractStatus(String token) {
+        return extractClaim(token, claims -> claims.get("status", String.class));
+    }
+
+    // Extract the Users extractCreatedByFk from JWt Token
+    public String extractCreatedByFk(String token) {
+        return extractClaim(token, claims -> claims.get("created_by_fk", String.class));
+    }
+
+    // Extract the Users extractCreatedDt from JWt Token
+    public String extractCreatedDt(String token) {
+        return extractClaim(token, claims -> claims.get("created_dt", String.class));
+    }
+
+    // Extract the Users extractQuarter from JWt Token
+    public String extractQuarter(String token) {
+        return extractClaim(token, claims -> claims.get("quarter", String.class));
+    }
+
+    // Extract the Users extractQuarter from JWt Token
+    public String extractFinancialYear(String token) {
+        return extractClaim(token, claims -> claims.get("financial_year", String.class));
+    }
+
+    // Extract the Users extractQuarterEndDate from JWt Token
+    public String extractQuarterEndDate(String token) {
+        return extractClaim(token, claims -> claims.get("quarterEndDate", String.class));
+    }
+
+    // Extract the Users extractPreviousYearDate from JWt Token
+    public String extractPreviousYearDate(String token) {
+        return extractClaim(token, claims -> claims.get("previousYearDate", String.class));
+    }
+
+    // Extract the Users extractPreviousQuarterDate from JWt Token
+    public String extractPreviousQuarterDate(String token) {
+        return extractClaim(token, claims -> claims.get("previousQuarterDate", String.class));
+    }
+
+    // Extract the Users extractCircleCode from JWt Token
+    public String extractCircleCode(String token) {
+        return extractClaim(token, claims -> claims.get("circleCode", String.class));
+    }
+
 }
