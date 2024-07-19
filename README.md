@@ -15,14 +15,14 @@ import java.util.concurrent.TimeUnit;
 
 public class RateLimitFilter implements Filter {
 
-    // Store the request counts and timestamps per IP address
-    private final ConcurrentHashMap<String, RateLimitInfo> requestCountsPerIpAddress = new ConcurrentHashMap<>();
-    
-    // Maximum requests allowed per interval
-    private final int MAX_REQUESTS = 20; 
-    
+    // Store the request counts and timestamps per IP address per URL
+    private final ConcurrentHashMap<String, ConcurrentHashMap<String, RateLimitInfo>> requestCountsPerIpAddress = new ConcurrentHashMap<>();
+
+    // Maximum requests allowed per interval per URL
+    private static final int MAX_REQUESTS = 5;
+
     // Time window in milliseconds (1 minute)
-    private final long TIME_WINDOW = TimeUnit.MINUTES.toMillis(1); 
+    private static final long TIME_WINDOW = TimeUnit.MINUTES.toMillis(1);
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -33,7 +33,6 @@ public class RateLimitFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
-        // Check if the request and response are HTTP requests/responses
         if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
             HttpServletRequest httpRequest = (HttpServletRequest) request;
             HttpServletResponse httpResponse = (HttpServletResponse) response;
@@ -44,16 +43,19 @@ public class RateLimitFilter implements Filter {
                 clientIpAddress = "unknown";
             }
 
-            // Check if the rate limit is exceeded for the client's IP address
-            if (isRateLimitExceeded(clientIpAddress)) {
+            // Get the requested URL
+            String requestURI = httpRequest.getRequestURI();
+
+            // Check if the rate limit is exceeded for this IP address and URL
+            if (isRateLimitExceeded(clientIpAddress, requestURI)) {
                 httpResponse.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
-                httpResponse.getWriter().write("Rate limit exceeded. Try again later.");
+                httpResponse.getWriter().write("Rate limit exceeded for this URL. Try again later.");
                 return;
             }
-        }
 
-        // Proceed with the filter chain if the rate limit is not exceeded
-        chain.doFilter(request, response);
+            // Proceed with the filter chain if the rate limit is not exceeded
+            chain.doFilter(request, response);
+        }
     }
 
     @Override
@@ -61,7 +63,7 @@ public class RateLimitFilter implements Filter {
         // Cleanup logic if needed
     }
 
-    // Helper method to get the client's IP address from various headers or remote address
+    // Method to get the client's IP address
     private String getClientIpAddress(HttpServletRequest request) {
         String[] headers = {
                 "X-Forwarded-For",
@@ -81,13 +83,16 @@ public class RateLimitFilter implements Filter {
         return request.getRemoteAddr(); // Fallback to remote address
     }
 
-    // Method to check if the rate limit is exceeded for the given IP address
-    private boolean isRateLimitExceeded(String clientIpAddress) {
+    // Method to check if the rate limit is exceeded for a given IP address and URL
+    private boolean isRateLimitExceeded(String clientIpAddress, String requestURI) {
         long currentTime = System.currentTimeMillis();
-        RateLimitInfo rateLimitInfo = requestCountsPerIpAddress.computeIfAbsent(clientIpAddress, ip -> new RateLimitInfo(currentTime));
+
+        // Get or create the URL-specific rate limit info for the given IP address
+        ConcurrentHashMap<String, RateLimitInfo> urlRateLimits = requestCountsPerIpAddress.computeIfAbsent(clientIpAddress, k -> new ConcurrentHashMap<>());
+        RateLimitInfo rateLimitInfo = urlRateLimits.computeIfAbsent(requestURI, k -> new RateLimitInfo(currentTime));
 
         synchronized (rateLimitInfo) {
-            // Reset the request count if the time window has passed
+            // Reset the count if the time window has passed
             if (currentTime - rateLimitInfo.timestamp > TIME_WINDOW) {
                 rateLimitInfo.reset(currentTime);
             }
@@ -98,7 +103,7 @@ public class RateLimitFilter implements Filter {
         }
     }
 
-    // Inner class to hold rate limit information for an IP address
+    // Inner class to hold rate limit information
     private static class RateLimitInfo {
         long timestamp; // The timestamp of the first request in the current window
         AtomicInteger requestCount; // The number of requests in the current window
@@ -108,7 +113,7 @@ public class RateLimitFilter implements Filter {
             this.requestCount = new AtomicInteger(0);
         }
 
-        // Reset the timestamp and request count
+        // Reset the rate limit information
         void reset(long timestamp) {
             this.timestamp = timestamp;
             this.requestCount.set(0);
