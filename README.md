@@ -1,92 +1,29 @@
 package utils.rateLimit;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.web.context.support.SpringBeanAutowiringSupport;
 
-import javax.servlet.FilterChain;
-import javax.servlet.Filter;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import org.springframework.stereotype.Service;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class RateLimitFilter implements Filter {
+@Service
+public class RateLimiterService {
 
-    @Autowired
-    private RateLimiterService rateLimiterService;
+    private final Cache<String, AtomicInteger> requestCountsPerIpAddress;
 
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-        SpringBeanAutowiringSupport.processInjectionBasedOnCurrentContext(this);
+    public RateLimiterService() {
+        this.requestCountsPerIpAddress = Caffeine.newBuilder()
+                .expireAfterWrite(1, TimeUnit.MINUTES)
+                .build();
     }
 
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-
-        if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
-            HttpServletRequest httpRequest = (HttpServletRequest) request;
-            HttpServletResponse httpResponse = (HttpServletResponse) response;
-
-//            String clientIpAddress = getClientIpAddress(httpRequest);
-            ////////////////
-            String clientIpAddress = "";
-            clientIpAddress = httpRequest.getHeader("X-Forwarded-For");
-            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
-                clientIpAddress = httpRequest.getHeader("Proxy-Client-IP");
-            }
-            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
-                clientIpAddress = httpRequest.getHeader("WL-Proxy-Client-IP");
-            }
-            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
-                clientIpAddress = httpRequest.getHeader("HTTP_CLIENT_IP");
-            }
-            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
-                clientIpAddress = httpRequest.getHeader("HTTP_X_FORWARDED_FOR");
-            }
-            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
-                clientIpAddress = httpRequest.getRemoteAddr();
-            }
-            
-            
-            ////////////////
-
-            System.out.println("Client IP Address: " + clientIpAddress);
-
-            if (clientIpAddress != null && rateLimiterService.isRateLimitExceeded(clientIpAddress)) {
-                httpResponse.setStatus(429); // Use 429 directly instead of SC_TOO_MANY_REQUESTS
-                httpResponse.getWriter().write("Rate limit exceeded. Try again later.");
-                return;
-            }
+    public boolean isRateLimitExceeded(String clientIpAddress) {
+        AtomicInteger requests = requestCountsPerIpAddress.get(clientIpAddress, k -> new AtomicInteger(0));
+        if (requests.incrementAndGet() > 2) {
+//        if (requests.incrementAndGet() > 60) {
+            return true;
         }
-
-        chain.doFilter(request, response);
-    }
-
-    @Override
-    public void destroy() {
-    }
-
-    private String getClientIpAddress(HttpServletRequest request) {
-        String[] headers = {
-                "X-Forwarded-For",
-                "Proxy-Client-IP",
-                "WL-Proxy-Client-IP",
-                "HTTP_CLIENT_IP",
-                "HTTP_X_FORWARDED_FOR"
-        };
-
-        for (String header : headers) {
-            String ip = request.getHeader(header);
-            if (ip != null && ip.length() != 0 && !"unknown".equalsIgnoreCase(ip)) {
-                return ip.split(",")[0]; // In case of multiple IPs, get the first one
-            }
-        }
-
-        return request.getRemoteAddr();
+        return false;
     }
 }
