@@ -1,4 +1,6 @@
+package utils.rateLimit;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.web.context.support.SpringBeanAutowiringSupport;
 
 import javax.servlet.FilterChain;
@@ -10,6 +12,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+
 
 public class RateLimitFilter implements Filter {
 
@@ -24,13 +27,36 @@ public class RateLimitFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        
+
         if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
             HttpServletRequest httpRequest = (HttpServletRequest) request;
             HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-            String clientIpAddress = getClientIpAddress(httpRequest);
+//            String clientIpAddress = getClientIpAddress(httpRequest);
+            ////////////////
+            String clientIpAddress = "";
+            clientIpAddress = httpRequest.getHeader("X-Forwarded-For");
+            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
+                clientIpAddress = httpRequest.getHeader("Proxy-Client-IP");
+            }
+            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
+                clientIpAddress = httpRequest.getHeader("WL-Proxy-Client-IP");
+            }
+            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
+                clientIpAddress = httpRequest.getHeader("HTTP_CLIENT_IP");
+            }
+            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
+                clientIpAddress = httpRequest.getHeader("HTTP_X_FORWARDED_FOR");
+            }
+            if (clientIpAddress == null || clientIpAddress.length() == 0 || "unknown".equalsIgnoreCase(clientIpAddress)) {
+                clientIpAddress = httpRequest.getRemoteAddr();
+            }
             
+            
+            ////////////////
+
+            System.out.println("Client IP Address: " + clientIpAddress);
+
             if (clientIpAddress != null && rateLimiterService.isRateLimitExceeded(clientIpAddress)) {
                 httpResponse.setStatus(429); // Use 429 directly instead of SC_TOO_MANY_REQUESTS
                 httpResponse.getWriter().write("Rate limit exceeded. Try again later.");
@@ -47,11 +73,11 @@ public class RateLimitFilter implements Filter {
 
     private String getClientIpAddress(HttpServletRequest request) {
         String[] headers = {
-            "X-Forwarded-For",
-            "Proxy-Client-IP",
-            "WL-Proxy-Client-IP",
-            "HTTP_CLIENT_IP",
-            "HTTP_X_FORWARDED_FOR"
+                "X-Forwarded-For",
+                "Proxy-Client-IP",
+                "WL-Proxy-Client-IP",
+                "HTTP_CLIENT_IP",
+                "HTTP_X_FORWARDED_FOR"
         };
 
         for (String header : headers) {
