@@ -1,4 +1,4 @@
-rateLimitInfo.timestamppackage utils.rateLimit;
+package utils.rateLimit;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
