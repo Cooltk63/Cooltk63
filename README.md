@@ -1,269 +1,111 @@
-package com.crs.cs.JwtAuth;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import org.springframework.stereotype.Service;
 
-import com.crs.cs.Model.UserMaster;
-import com.crs.cs.Service.UserMasterServiceImpl;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
-import jakarta.servlet.http.HttpServletRequest;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+@Service
+public class RateLimiterService {
+
+    private final Cache<String, AtomicInteger> requestCountsPerIpAddress;
+
+    public RateLimiterService() {
+        this.requestCountsPerIpAddress = Caffeine.newBuilder()
+                .expireAfterWrite(1, TimeUnit.MINUTES)
+                .build();
+    }
+
+    public boolean isRateLimitExceeded(String clientIpAddress) {
+        AtomicInteger requests = requestCountsPerIpAddress.get(clientIpAddress, k -> new AtomicInteger(0));
+        if (requests.incrementAndGet() > 60) {
+            return true;
+        }
+        return false;
+    }
+}
+
+
+xxxx
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 
-import java.io.UnsupportedEncodingException;
-import java.security.Key;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.logging.Logger;
+import javax.servlet.FilterChain;
+import javax.servlet.Filter;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 @Component
-public class JwtUtil {
+public class RateLimitFilter implements Filter {
 
-    static Logger log = Logger.getLogger(JwtUtil.class.getName());
-    private final String SECRET_KEY = "thisIsTheMostSecretKeytcs123springframeworkspringframeworkspringframework";
     @Autowired
-    private UserMasterServiceImpl userMasterServiceImpl;
+    private RateLimiterService rateLimiterService;
 
-    //Algorithm algorithm
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        
+        HttpServletRequest httpRequest = (HttpServletRequest) request;
+        HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-//    public String extractUsername(String token) {
-//        return extractClaim(token, Claims::getSubject);
-//    }
-
-    private Boolean isTokenExpired(String token) {
-        log.info(" <==========isTokenExpired Function Called ==========>:: ");
-        return extractExpiration(token).before(new Date());
-    }
-
-    public Date extractExpiration(String token) {
-
-        log.info(" <==========extractExpiration Function Called ==========>:: ");
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        log.info(" <==========extractClaim Function Called ==========>:: ");
-        return claimsResolver.apply(claims);
-    }
-
-    private Claims extractAllClaims(String token) {
-        log.info(" <==========extractAllClaims Function Called ==========>:: ");
-        System.out.println("Calling the extractAllClaims Method @@@@@@");
-//        String GetUserName=CalimuserName(token);
-//        System.out.println("Claim  UserName:"+GetUserName);
-        //Jwts.
-        return Jwts.parser().setSigningKey(SECRET_KEY).build().parseClaimsJws(token).getBody();
-//        return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
-    }
-
-
-    public String generateToken(UserMaster userMaster, String quarterYear, String circleCode) throws UnsupportedEncodingException {
-        log.info("<==========GenerateToken Function Called ==========>::  ");
-
-        String[] QFD = quarterYear.split("~");
-
-        // Added the login Users Details inside JWT Token
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("pf_number", userMaster.getPf());
-        claims.put("first_name", userMaster.getFirst_name());
-        claims.put("middle_name", userMaster.getMiddle_name());
-        claims.put("last_name", userMaster.getLast_name());
-        claims.put("branch_code", userMaster.getBranch_code());
-        claims.put("mobile_number", userMaster.getMobile_number());
-        claims.put("email_id", userMaster.getEmail_id());
-        claims.put("user_role", userMaster.getUserRole());
-        claims.put("status", userMaster.getStatus());
-        claims.put("created_dt", userMaster.getCreated_dt());
-        claims.put("created_by_fk", userMaster.getCreated_by_fk());
-        claims.put("quarter", QFD[0]);
-        claims.put("financial_year", QFD[1]);
-        claims.put("quarterEndDate", QFD[2]);
-        claims.put("previousYearDate", QFD[3]);
-        claims.put("previousQuarterDate", QFD[4]);
-        claims.put("circleCode", circleCode);
-
-
-        // Token Expires After 1 Hrs
-        return Jwts.builder()
-                .setClaims(claims)
-                .setSubject("TOKEN")
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 1))
-                .signWith(SignatureAlgorithm.HS256, SECRET_KEY.getBytes("UTF-8")).compact();
-    }
-
-    public Boolean validateToken(String token, int PFID) {
-        log.info(" <==========validateToken Function Called ==========>:: ");
-        final int usernameFromToken = extractPfNumber(token);
-        return (usernameFromToken == PFID && !isTokenExpired(token));
-    }
-
-
-    public Map<String, Object> getTokenData(String token) {
-        Map<String, Object> tokenData = new HashMap<>();
-        tokenData.put("pf_number", extractPfNumber(token));
-        tokenData.put("first_name", extractFirstName(token));
-        tokenData.put("middle_name", extractMiddleName(token));
-        tokenData.put("last_name", extractLastName(token));
-        tokenData.put("branch_code", extractBranchCode(token));
-        tokenData.put("email_id", extractEmailId(token));
-        tokenData.put("user_role", extractUserRole(token));
-        tokenData.put("status", extractStatus(token));
-        tokenData.put("created_by_fk", extractCreatedByFk(token));
-        tokenData.put("created_dt", extractCreatedDt(token));
-        tokenData.put("quarter", extractQuarter(token));
-        tokenData.put("financial_year", extractFinancialYear(token));
-        tokenData.put("quarterEndDate", extractQuarterEndDate(token));
-        tokenData.put("previousYearDate", extractPreviousYearDate(token));
-        tokenData.put("previousQuarterDate", extractPreviousQuarterDate(token));
-        tokenData.put("circleCode", extractCircleCode(token));
-        return tokenData;
-    }
-
-
-    public String IsTokenValidate(HttpServletRequest request, String token) {
-
-        int extractPfNumber = extractPfNumber(token);
-        String extractFirstName = extractFirstName(token);
-        String extractLastName = extractLastName(token);
-
-        System.out.println("@@@ extractPfNumber values ::: " + extractPfNumber);
-        System.out.println("@@@ extractFirstName values ::: " + extractFirstName);
-        System.out.println("@@@ extractLastName values ::: " + extractLastName);
-
-        final String authorizationHeader = request.getHeader("Authorization");
-
-        int PF_Number = 0;
-        String jwt = null;
-        String requestResult = "Token is invalid";
-
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer")) {
-
-            System.out.println("inside filter IF ");
-            jwt = authorizationHeader.substring(7);
-            try {
-                PF_Number = extractPfNumber(jwt);
-                System.out.println("PFID WE GET:" + PF_Number);
-            } catch (ExpiredJwtException e) {
-                System.out.println("JWT Token has expired");
-            } catch (Exception e) {
-                System.out.println("Error while extracting username from JWT");
-            }
+        String clientIpAddress = httpRequest.getRemoteAddr();
+        
+        if (rateLimiterService.isRateLimitExceeded(clientIpAddress)) {
+            httpResponse.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+            httpResponse.getWriter().write("Rate limit exceeded. Try again later.");
+            return;
         }
-
-//        request.setAttribute("token", "Invalid");
-        if (PF_Number != 0 /*&& SecurityContextHolder.getContext().getAuthentication() == null*/) {
-
-            System.out.println("Inside username != null ");
-
-//            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-
-            UserMaster userMaster = this.userMasterServiceImpl.getCustomUserData(PF_Number);
-
-            System.out.println("Loading loadUserByUsername :" + PF_Number);
-
-            if (validateToken(jwt, userMaster.getPf())) {
-
-                System.out.println("Inside ValidateToken ::::" + userMaster.getPf());
-
-                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(userMaster, null);
-                usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
-
-//                request.setAttribute("token", "valid");
-                requestResult = "Token is valid";
-            }
-        }
-        return requestResult;
+        
+        chain.doFilter(request, response);
     }
 
-
-    // Extract the Users PfNumber from JWt Token
-    public int extractPfNumber(String token) {
-        return extractClaim(token, claims -> claims.get("pf_number", Integer.class));
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
     }
 
-    // Extract the Users FirstName from JWt Token
-    public String extractFirstName(String token) {
-        return extractClaim(token, claims -> claims.get("first_name", String.class));
+    @Override
+    public void destroy() {
     }
-
-    // Extract the Users LastName from JWt Token
-    public String extractLastName(String token) {
-        return extractClaim(token, claims -> claims.get("last_name", String.class));
-    }
-
-    // Extract the Users MiddleName from JWt Token
-    public String extractMiddleName(String token) {
-        return extractClaim(token, claims -> claims.get("middle_name", String.class));
-    }
-
-    // Extract the Users BranchCode from JWt Token
-    public String extractBranchCode(String token) {
-        return extractClaim(token, claims -> claims.get("branch_code", String.class));
-    }
-
-    // Extract the Users extractEmailId from JWt Token
-    public String extractEmailId(String token) {
-        return extractClaim(token, claims -> claims.get("email_id", String.class));
-    }
-
-    // Extract the Users extractUserRole from JWt Token
-    public String extractUserRole(String token) {
-        return extractClaim(token, claims -> claims.get("user_role", String.class));
-    }
-
-    // Extract the Users extractStatus from JWt Token
-    public String extractStatus(String token) {
-        return extractClaim(token, claims -> claims.get("status", String.class));
-    }
-
-    // Extract the Users extractCreatedByFk from JWt Token
-    public String extractCreatedByFk(String token) {
-        return extractClaim(token, claims -> claims.get("created_by_fk", String.class));
-    }
-
-    // Extract the Users extractCreatedDt from JWt Token
-    public String extractCreatedDt(String token) {
-        return extractClaim(token, claims -> claims.get("created_dt", String.class));
-    }
-
-    // Extract the Users extractQuarter from JWt Token
-    public String extractQuarter(String token) {
-        return extractClaim(token, claims -> claims.get("quarter", String.class));
-    }
-
-    // Extract the Users extractQuarter from JWt Token
-    public String extractFinancialYear(String token) {
-        return extractClaim(token, claims -> claims.get("financial_year", String.class));
-    }
-
-    // Extract the Users extractQuarterEndDate from JWt Token
-    public String extractQuarterEndDate(String token) {
-        return extractClaim(token, claims -> claims.get("quarterEndDate", String.class));
-    }
-
-    // Extract the Users extractPreviousYearDate from JWt Token
-    public String extractPreviousYearDate(String token) {
-        return extractClaim(token, claims -> claims.get("previousYearDate", String.class));
-    }
-
-    // Extract the Users extractPreviousQuarterDate from JWt Token
-    public String extractPreviousQuarterDate(String token) {
-        return extractClaim(token, claims -> claims.get("previousQuarterDate", String.class));
-    }
-
-    // Extract the Users extractCircleCode from JWt Token
-    public String extractCircleCode(String token) {
-        return extractClaim(token, claims -> claims.get("circleCode", String.class));
-    }
-
 }
+
+xxxx
+
+import org.springframework.web.WebApplicationInitializer;
+import javax.servlet.FilterRegistration;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+
+public class AppInitializer implements WebApplicationInitializer {
+
+    @Override
+    public void onStartup(ServletContext servletContext) throws ServletException {
+        FilterRegistration.Dynamic rateLimitFilter = servletContext.addFilter("rateLimitFilter", new RateLimitFilter());
+        rateLimitFilter.addMappingForUrlPatterns(null, false, "/*");
+    }
+}
+
+
+xxxxx
+
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@ComponentScan(basePackages = "com.yourpackage")
+public class AppConfig {
+    // Other beans and configurations
+}
+
+
+xxx
+<dependency>
+    <groupId>com.github.ben-manes.caffeine</groupId>
+    <artifactId>caffeine</artifactId>
+    <version>3.0.4</version>
+</dependency>
