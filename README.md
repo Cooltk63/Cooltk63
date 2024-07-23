@@ -1,73 +1,232 @@
+// Login Controller @Author : V1012297
+package com.tcs.controller;
 
-org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection; nested exception is weblogic.jdbc.extensions.PoolDisabledSQLException: weblogic.common.resourcepool.ResourceDisabledException: Pool JDBC Data Source-0 is suspended. Cannot allocate resources to applications. It was suspended at Tue Jul 23 15:00:35 IST 2024 because of 2 consecutive connect failures. Last connect attempt failed at Tue Jul 23 15:02:19 IST 2024 because of weblogic.common.ResourceException: weblogic.common.ResourceException: Could not create pool connection for datasource 'JDBC Data Source-0'. The DBMS driver exception was: ORA-28040: No matching authentication protocol
-. Last connection created successfully at Tue Jul 23 14:58:28 IST 2024.
-	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:84)
-	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:645)
-	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:715)
-	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:746)
-	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:759)
-	at org.springframework.jdbc.core.JdbcTemplate.queryForObject(JdbcTemplate.java:881)
-	at com.tcs.dao.LoginDaoImpl.validateUser(LoginDaoImpl.java:39)
-	at com.tcs.service.LoginServiceImpl.validateUser(LoginServiceImpl.java:24)
-	at com.tcs.controller.LoginController.login(LoginController.java:75)
-	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
-	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-	at java.lang.reflect.Method.invoke(Method.java:498)
-	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205)
-	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150)
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:895)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808)
-	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1072)
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:965)
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006)
-	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:909)
-	at javax.servlet.http.HttpServlet.service(HttpServlet.java:665)
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883)
-	at javax.servlet.http.HttpServlet.service(HttpServlet.java:750)
-	at weblogic.servlet.internal.StubSecurityHelper$ServletServiceAction.run(StubSecurityHelper.java:295)
-	at weblogic.servlet.internal.StubSecurityHelper$ServletServiceAction.run(StubSecurityHelper.java:260)
-	at weblogic.servlet.internal.StubSecurityHelper.invokeServlet(StubSecurityHelper.java:137)
-	at weblogic.servlet.internal.ServletStubImpl.execute(ServletStubImpl.java:353)
-	at weblogic.servlet.internal.TailFilter.doFilter(TailFilter.java:25)
-	at weblogic.servlet.internal.FilterChainImpl.doFilter(FilterChainImpl.java:82)
-	at utils.rateLimit.RateLimitFilter.doFilter(RateLimitFilter.java:60)
-	at weblogic.servlet.internal.FilterChainImpl.doFilter(FilterChainImpl.java:82)
-	at utils.LoginFilter.doFilter(LoginFilter.java:108)
-	at weblogic.servlet.internal.FilterChainImpl.doFilter(FilterChainImpl.java:82)
-	at weblogic.servlet.internal.WebAppServletContext$ServletInvocationAction.wrapRun(WebAppServletContext.java:3866)
-	at weblogic.servlet.internal.WebAppServletContext$ServletInvocationAction.run(WebAppServletContext.java:3829)
-	at weblogic.security.acl.internal.AuthenticatedSubject.doAs(AuthenticatedSubject.java:344)
-	at weblogic.security.service.SecurityManager.runAsForUserCode(SecurityManager.java:197)
-	at weblogic.servlet.provider.WlsSecurityProvider.runAsForUserCode(WlsSecurityProvider.java:203)
-	at weblogic.servlet.provider.WlsSubjectHandle.run(WlsSubjectHandle.java:71)
-	at weblogic.servlet.internal.WebAppServletContext.processSecuredExecute(WebAppServletContext.java:2502)
-	at weblogic.servlet.internal.WebAppServletContext.doSecuredExecute(WebAppServletContext.java:2351)
-	at weblogic.servlet.internal.WebAppServletContext.securedExecute(WebAppServletContext.java:2326)
-	at weblogic.servlet.internal.WebAppServletContext.execute(WebAppServletContext.java:2304)
-	at weblogic.servlet.internal.ServletRequestImpl.runInternal(ServletRequestImpl.java:1779)
-	at weblogic.servlet.internal.ServletRequestImpl.run(ServletRequestImpl.java:1733)
-	at weblogic.servlet.provider.ContainerSupportProviderImpl$WlsRequestExecutor.run(ContainerSupportProviderImpl.java:272)
-	at weblogic.invocation.ComponentInvocationContextManager._runAs(ComponentInvocationContextManager.java:352)
-	at weblogic.invocation.ComponentInvocationContextManager.runAs(ComponentInvocationContextManager.java:337)
-	at weblogic.work.LivePartitionUtility.doRunWorkUnderContext(LivePartitionUtility.java:57)
-	at weblogic.work.PartitionUtility.runWorkUnderContext(PartitionUtility.java:41)
-	at weblogic.work.SelfTuningWorkManagerImpl.runWorkUnderContext(SelfTuningWorkManagerImpl.java:651)
-	at weblogic.work.ExecuteThread.execute(ExecuteThread.java:420)
-	at weblogic.work.ExecuteThread.run(ExecuteThread.java:360)
-Caused by: weblogic.jdbc.extensions.PoolDisabledSQLException: weblogic.common.resourcepool.ResourceDisabledException: Pool JDBC Data Source-0 is suspended. Cannot allocate resources to applications. It was suspended at Tue Jul 23 15:00:35 IST 2024 because of 2 consecutive connect failures. Last connect attempt failed at Tue Jul 23 15:02:19 IST 2024 because of weblogic.common.ResourceException: weblogic.common.ResourceException: Could not create pool connection for datasource 'JDBC Data Source-0'. The DBMS driver exception was: ORA-28040: No matching authentication protocol
-. Last connection created successfully at Tue Jul 23 14:58:28 IST 2024.
-	at weblogic.jdbc.common.internal.JDBCUtil.wrapAndThrowResourceException(JDBCUtil.java:289)
-	at weblogic.jdbc.pool.Driver.connect(Driver.java:154)
-	at weblogic.jdbc.jts.Driver.getNonTxConnection(Driver.java:665)
-	at weblogic.jdbc.jts.Driver.connect(Driver.java:129)
-	at weblogic.jdbc.common.internal.WLDataSourceImpl.getConnectionInternal(WLDataSourceImpl.java:655)
-	at weblogic.jdbc.common.internal.WLDataSourceImpl.getConnection(WLDataSourceImpl.java:611)
-	at weblogic.jdbc.common.internal.WLDataSourceImpl.getConnection(WLDataSourceImpl.java:604)
-	at weblogic.jdbc.common.internal.RmiDataSource.getConnection(RmiDataSource.java:108)
-	at org.springframework.jdbc.datasource.DataSourceUtils.fetchConnection(DataSourceUtils.java:160)
-	at org.springframework.jdbc.datasource.DataSourceUtils.doGetConnection(DataSourceUtils.java:118)
-	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:81)
-	... 55 more
+import com.tcs.bean.AdminHome;
+import com.tcs.bean.User;
+import com.tcs.service.AdminHomeService;
+import com.tcs.service.DashUserService;
+import com.tcs.service.LoginService;
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.servlet.view.RedirectView;
+import utils.CommonConstants;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+import javax.sql.DataSource;
+import java.security.Principal;
+import java.util.List;
+import java.util.Map;
+
+@RequestMapping(value = "/Security")
+@Controller
+public class LoginController {
+
+    private final static Logger log = Logger.getLogger(LoginController.class);
+    private static final String displayMessage = "displayMessage";
+    final
+    LoginService loginService;
+    final DashUserService dashUserService;
+    final
+    DataSource dataSource;
+    final AdminHomeService adminHomeService;
+    @Value("#{applicationProp}")
+    Map<String, Object> MessageMap;
+
+    public LoginController(LoginService loginService, DashUserService dashUserService, AdminHomeService adminHomeService, DataSource dataSource) {
+        this.loginService = loginService;
+        this.dashUserService = dashUserService;
+        this.adminHomeService = adminHomeService;
+        this.dataSource = dataSource;
+    }
+
+    // User Login Credentials Authorize
+    //@Author : V1012297
+    @PostMapping(value = "/home")
+    public ModelAndView login(HttpServletRequest request, @ModelAttribute("pfId") String userID, RedirectAttributes redirectAttributes) {
+
+        // If Session Not Existed Create New Session
+        HttpSession httpSession = request.getSession(true);
+        httpSession.setAttribute(displayMessage, "");
+
+        //On Login IF Session Exists then Invalidate the Session.
+        if (httpSession.getAttribute(CommonConstants.USER_ID) != null) {
+                log.info("@@@ SESSION EXIST TERMINATING SESSION !!!!");
+                httpSession.invalidate();
+            // After invalidating old session creating new session
+            httpSession = request.getSession(true);
+        }
+
+        // If user id is null / empty
+        if (userID == null || userID.isEmpty()) {
+            RedirectView view = new RedirectView("/", true);
+            view.setExposeModelAttributes(false);
+            return new ModelAndView(view);
+
+        } else {
+
+            // Get User Details from DB
+            User userDetails = loginService.validateUser(userID);
+
+            if (userDetails == null) {
+                // Validate If User Creation Request Exists for UserID
+                Boolean UserRequestExists = loginService.IsUserRequestExists(userID);
+                log.info("Return Result :" + UserRequestExists);
+                RedirectView view = new RedirectView("/", true);
+                view.setExposeModelAttributes(false);
+
+                httpSession.setAttribute(displayMessage, MessageMap.get("EUSDTNT"));
+                // Validate Creation Request Exists for UserID
+                if (UserRequestExists) {
+                    //view.addStaticAttribute(displayMessage,MessageMap.get("EUSRQPD"));
+                    httpSession.setAttribute(displayMessage, MessageMap.get("EUSRQPD"));
+                }
+                return new ModelAndView(view);
+
+            } else if (userDetails.getUserStatus().equalsIgnoreCase("I")) {
+
+                RedirectView view = new RedirectView("/", true);
+                view.setExposeModelAttributes(false);
+
+                httpSession.setAttribute(displayMessage, MessageMap.get("EUSAUTH"));
+
+                return new ModelAndView(view);
+
+            } else {
+                ModelAndView view;
+                // Validate User & Setting Global Session ID
+                loginService.setGlobalSession(userDetails, httpSession);
+                //User Role wise Redirection
+                String userRole = userDetails.getUserRole();
+                switch (userRole) {
+                    case "A":
+                        view = new ModelAndView("AdminHome");
+                        view.addObject("pendingCreateReq", adminHomeService.pendingCreateRequest());
+                        view.addObject("pendingModifyDeleteReq", adminHomeService.pendingModifyDeleteRequest());
+                        break;
+                    case "D":
+                        view = new ModelAndView("DashUserHome");
+                        view.addObject("max_date", dashUserService.minMaxDate().split("~")[0]);
+                        view.addObject("min_date", dashUserService.minMaxDate().split("~")[1]);
+                        break;
+                    default:
+                        log.info("This is default method.");
+                        return null;
+                }
+                view.addObject("userName", userDetails.getUserName());
+                view.addObject("userPfId", userDetails.getUserID());
+                view.addObject("userRole", userDetails.getUserRole());
+                return view;
+            }
+        }
+
+    }
+
+
+    @PostMapping("/getUserStatus")
+    @ResponseBody
+    public Map<String, Object> getUserList() {
+        return adminHomeService.getRequestList();
+    }
+
+    @PostMapping("/getDashStatus")
+    @ResponseBody
+    public Map<String, Object> getDashStatus() {
+        return adminHomeService.getDashList();
+    }
+
+    @PostMapping("/getTopFiveViews")
+    @ResponseBody
+    public List<AdminHome> getTopFiveDashboards() {
+        log.info("dataList :" + adminHomeService.getTopViewList());
+        return adminHomeService.getTopViewList();
+    }
+
+
+    //Logout & Invalidate Session
+    //@Author : V1012297
+    @RequestMapping(value = "/logout", method = RequestMethod.GET)
+    public String logoutSuccessfulPage(Model model, HttpServletRequest request) {
+        log.info("Inside logout ...!");
+
+        String UserId = (String) request.getSession().getAttribute("userID");
+
+        loginService.deleteSessionId(UserId);
+        HttpSession session = request.getSession(false);
+        session.invalidate();
+        model.addAttribute("title", "Logout");
+        return "Logout";
+    }
+
+    // Error Page
+    //@Author : V1012297
+    @RequestMapping(value = "/403", method = RequestMethod.GET)
+    public String accessDenied(Model model, Principal principal) {
+
+        if (principal != null) {
+            model.addAttribute("message", "Hi " + principal.getName()
+                    + "<br> You do not have permission to access this page!");
+        } else {
+            model.addAttribute("msg",
+                    "You do not have permission to access this page!");
+        }
+        return "view/Misc/404error";
+    }
+
+    /*Methode for getting chart of dashUser home screen
+     * @Author: V1010939 */
+    @PostMapping(value = "/getDepositsData")
+    @ResponseBody
+    public List<List<Map<String, Object>>> getDashUeserchart(@RequestBody Map map) {
+        return dashUserService.getRequestList(map);
+    }
+    /*### END ###*/
+
+    /*Methode for getting chart of dashUser home screen
+     * @Author: V1010939 */
+    @PostMapping(value = "/getSplineList")
+    @ResponseBody
+    public List<List<Map<String, Object>>> getSplinesData(@RequestBody Map map) {
+        return dashUserService.getSplinesList(map);
+    }
+    /*### END ###*/
+
+    @PostMapping("/getLoadingStatus")
+    @ResponseBody
+    public List<Map<String, Object>> filesStatusData() {
+        return adminHomeService.filesStatusData();
+    }
+
+    /*Methode for getting previous date for percentage calculations
+     * @Author: V1010939 */
+    @PostMapping(value = "/getPreviousData")
+    @ResponseBody
+    public Map<String, Object> getPreviousData(@RequestBody Map map) {
+        return dashUserService.getPreviousData(map);
+    }
+    /*### ENDS ###*/
+
+    /*Methode for getting chart of dashUser home screen
+     * @Author: V1010939 */
+    @PostMapping(value = "/getSparkLineData")
+    @ResponseBody
+    public Map<String, Object> getSparkLineData(@RequestBody Map map) {
+        return dashUserService.getSparkLineList(map);
+    }
+    /*### END ###*/
+
+    /*Methode for getting chart of dashUser home screen
+     * @Author: V1010939 */
+    @PostMapping(value = "/getIncomeExpenseTrend")
+    @ResponseBody
+    public Map<String, Object> getIncomeExpenseTrend(@RequestBody Map map) {
+        return dashUserService.getIncExsTrend(map);
+    }
+    /*### END ###*/
+}
