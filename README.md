@@ -1,133 +1,73 @@
-package com.tcs.security.rateLimit;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-public class RateLimitFilter implements Filter {
-
-    // Store the request counts and timestamps per IP address per URL
-    private final ConcurrentHashMap<String, ConcurrentHashMap<String, RateLimitInfo>> requestCountsPerIpAddress = new ConcurrentHashMap<>();
-
-    // Maximum requests allowed per interval per URL
-    private static final int MAX_REQUESTS = 5;
-
-    // Time window in milliseconds (1 minute)
-    private static final long TIME_WINDOW = TimeUnit.MINUTES.toMillis(1);
-
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-        // Initialization logic if needed
-    }
-
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-
-        if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
-            HttpServletRequest httpRequest = (HttpServletRequest) request;
-            HttpServletResponse httpResponse = (HttpServletResponse) response;
-
-            // ByPass URLs
-            String requestURL = httpRequest.getRequestURI();
-            if (requestURL.endsWith(".js") || requestURL.contains(".css") || requestURL.contains(".min.js") ||
-                requestURL.endsWith(".jpg") || requestURL.endsWith(".png") || requestURL.endsWith(".woff") ||
-                requestURL.endsWith(".ttf") || requestURL.endsWith(".svg") || requestURL.endsWith(".ico") ||
-                requestURL.endsWith(".eot")) {
-                chain.doFilter(request, response);
-                return;
-            }
-
-            // Get the client's IP address
-            String clientIpAddress = getClientIpAddress(httpRequest);
-            if (clientIpAddress == null) {
-                clientIpAddress = "unknown";
-            }
-
-            // Get the requested URL
-            String requestURI = httpRequest.getRequestURI();
-
-            // Check if the rate limit is exceeded for this IP address and URL
-            if (isRateLimitExceeded(clientIpAddress, requestURI)) {
-                httpResponse.setStatus(429);
-                httpResponse.getWriter().write("Rate limit exceeded for this URL. Try again later.");
-                return;
-            }
-
-            // Proceed with the filter chain if the rate limit is not exceeded
-            chain.doFilter(request, response);
-        }
-    }
-
-    @Override
-    public void destroy() {
-        // Cleanup logic if needed
-    }
-
-    // Method to get the client's IP address
-    private String getClientIpAddress(HttpServletRequest request) {
-        String[] headers = {
-            "X-Forwarded-For",
-            "Proxy-Client-IP",
-            "WL-Proxy-Client-IP",
-            "HTTP_CLIENT_IP",
-            "HTTP_X_FORWARDED_FOR"
-        };
-
-        for (String header : headers) {
-            String ip = request.getHeader(header);
-            if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-                return ip.split(",")[0].trim(); // Get the first IP if there are multiple
-            }
-        }
-
-        return request.getRemoteAddr(); // Fallback to remote address
-    }
-
-    // Method to check if the rate limit is exceeded for a given IP address and URL
-    private boolean isRateLimitExceeded(String clientIpAddress, String requestURI) {
-        long currentTime = System.currentTimeMillis();
-
-        // Get or create the URL-specific rate limit info for the given IP address
-        ConcurrentHashMap<String, RateLimitInfo> urlRateLimits = requestCountsPerIpAddress.computeIfAbsent(clientIpAddress, k -> new ConcurrentHashMap<>());
-        RateLimitInfo rateLimitInfo = urlRateLimits.computeIfAbsent(requestURI, k -> new RateLimitInfo(currentTime));
-
-        synchronized (rateLimitInfo) {
-            // Reset the count if the time window has passed
-            if (currentTime - rateLimitInfo.timestamp > TIME_WINDOW) {
-                rateLimitInfo.reset(currentTime);
-            }
-
-            // Increment the request count and check if it exceeds the max requests
-            int currentRequestCount = rateLimitInfo.requestCount.incrementAndGet();
-            System.out.println("Client IP: " + clientIpAddress + ", Request URI: " + requestURI + ", Current Count: " + currentRequestCount);
-            return currentRequestCount > MAX_REQUESTS;
-        }
-    }
-
-    // Inner class to hold rate limit information
-    private static class RateLimitInfo {
-        long timestamp; // The timestamp of the first request in the current window
-        AtomicInteger requestCount; // The number of requests in the current window
-
-        RateLimitInfo(long timestamp) {
-            this.timestamp = timestamp;
-            this.requestCount = new AtomicInteger(0);
-        }
-
-        // Reset the rate limit information
-        void reset(long timestamp) {
-            this.timestamp = timestamp;
-            this.requestCount.set(0);
-        }
-    }
-}
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection; nested exception is weblogic.jdbc.extensions.PoolDisabledSQLException: weblogic.common.resourcepool.ResourceDisabledException: Pool JDBC Data Source-0 is suspended. Cannot allocate resources to applications. It was suspended at Tue Jul 23 15:00:35 IST 2024 because of 2 consecutive connect failures. Last connect attempt failed at Tue Jul 23 15:02:19 IST 2024 because of weblogic.common.ResourceException: weblogic.common.ResourceException: Could not create pool connection for datasource 'JDBC Data Source-0'. The DBMS driver exception was: ORA-28040: No matching authentication protocol
+. Last connection created successfully at Tue Jul 23 14:58:28 IST 2024.
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:84)
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:645)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:715)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:746)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:759)
+	at org.springframework.jdbc.core.JdbcTemplate.queryForObject(JdbcTemplate.java:881)
+	at com.tcs.dao.LoginDaoImpl.validateUser(LoginDaoImpl.java:39)
+	at com.tcs.service.LoginServiceImpl.validateUser(LoginServiceImpl.java:24)
+	at com.tcs.controller.LoginController.login(LoginController.java:75)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:895)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1072)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:965)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006)
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:909)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:665)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:750)
+	at weblogic.servlet.internal.StubSecurityHelper$ServletServiceAction.run(StubSecurityHelper.java:295)
+	at weblogic.servlet.internal.StubSecurityHelper$ServletServiceAction.run(StubSecurityHelper.java:260)
+	at weblogic.servlet.internal.StubSecurityHelper.invokeServlet(StubSecurityHelper.java:137)
+	at weblogic.servlet.internal.ServletStubImpl.execute(ServletStubImpl.java:353)
+	at weblogic.servlet.internal.TailFilter.doFilter(TailFilter.java:25)
+	at weblogic.servlet.internal.FilterChainImpl.doFilter(FilterChainImpl.java:82)
+	at utils.rateLimit.RateLimitFilter.doFilter(RateLimitFilter.java:60)
+	at weblogic.servlet.internal.FilterChainImpl.doFilter(FilterChainImpl.java:82)
+	at utils.LoginFilter.doFilter(LoginFilter.java:108)
+	at weblogic.servlet.internal.FilterChainImpl.doFilter(FilterChainImpl.java:82)
+	at weblogic.servlet.internal.WebAppServletContext$ServletInvocationAction.wrapRun(WebAppServletContext.java:3866)
+	at weblogic.servlet.internal.WebAppServletContext$ServletInvocationAction.run(WebAppServletContext.java:3829)
+	at weblogic.security.acl.internal.AuthenticatedSubject.doAs(AuthenticatedSubject.java:344)
+	at weblogic.security.service.SecurityManager.runAsForUserCode(SecurityManager.java:197)
+	at weblogic.servlet.provider.WlsSecurityProvider.runAsForUserCode(WlsSecurityProvider.java:203)
+	at weblogic.servlet.provider.WlsSubjectHandle.run(WlsSubjectHandle.java:71)
+	at weblogic.servlet.internal.WebAppServletContext.processSecuredExecute(WebAppServletContext.java:2502)
+	at weblogic.servlet.internal.WebAppServletContext.doSecuredExecute(WebAppServletContext.java:2351)
+	at weblogic.servlet.internal.WebAppServletContext.securedExecute(WebAppServletContext.java:2326)
+	at weblogic.servlet.internal.WebAppServletContext.execute(WebAppServletContext.java:2304)
+	at weblogic.servlet.internal.ServletRequestImpl.runInternal(ServletRequestImpl.java:1779)
+	at weblogic.servlet.internal.ServletRequestImpl.run(ServletRequestImpl.java:1733)
+	at weblogic.servlet.provider.ContainerSupportProviderImpl$WlsRequestExecutor.run(ContainerSupportProviderImpl.java:272)
+	at weblogic.invocation.ComponentInvocationContextManager._runAs(ComponentInvocationContextManager.java:352)
+	at weblogic.invocation.ComponentInvocationContextManager.runAs(ComponentInvocationContextManager.java:337)
+	at weblogic.work.LivePartitionUtility.doRunWorkUnderContext(LivePartitionUtility.java:57)
+	at weblogic.work.PartitionUtility.runWorkUnderContext(PartitionUtility.java:41)
+	at weblogic.work.SelfTuningWorkManagerImpl.runWorkUnderContext(SelfTuningWorkManagerImpl.java:651)
+	at weblogic.work.ExecuteThread.execute(ExecuteThread.java:420)
+	at weblogic.work.ExecuteThread.run(ExecuteThread.java:360)
+Caused by: weblogic.jdbc.extensions.PoolDisabledSQLException: weblogic.common.resourcepool.ResourceDisabledException: Pool JDBC Data Source-0 is suspended. Cannot allocate resources to applications. It was suspended at Tue Jul 23 15:00:35 IST 2024 because of 2 consecutive connect failures. Last connect attempt failed at Tue Jul 23 15:02:19 IST 2024 because of weblogic.common.ResourceException: weblogic.common.ResourceException: Could not create pool connection for datasource 'JDBC Data Source-0'. The DBMS driver exception was: ORA-28040: No matching authentication protocol
+. Last connection created successfully at Tue Jul 23 14:58:28 IST 2024.
+	at weblogic.jdbc.common.internal.JDBCUtil.wrapAndThrowResourceException(JDBCUtil.java:289)
+	at weblogic.jdbc.pool.Driver.connect(Driver.java:154)
+	at weblogic.jdbc.jts.Driver.getNonTxConnection(Driver.java:665)
+	at weblogic.jdbc.jts.Driver.connect(Driver.java:129)
+	at weblogic.jdbc.common.internal.WLDataSourceImpl.getConnectionInternal(WLDataSourceImpl.java:655)
+	at weblogic.jdbc.common.internal.WLDataSourceImpl.getConnection(WLDataSourceImpl.java:611)
+	at weblogic.jdbc.common.internal.WLDataSourceImpl.getConnection(WLDataSourceImpl.java:604)
+	at weblogic.jdbc.common.internal.RmiDataSource.getConnection(RmiDataSource.java:108)
+	at org.springframework.jdbc.datasource.DataSourceUtils.fetchConnection(DataSourceUtils.java:160)
+	at org.springframework.jdbc.datasource.DataSourceUtils.doGetConnection(DataSourceUtils.java:118)
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:81)
+	... 55 more
