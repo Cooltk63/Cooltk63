@@ -60,3 +60,48 @@ async function modifyRequest() {
         },
     });
 }
+
+
+xxx
+
+@PostMapping("/ModifyUserRequest")
+public String modifyUserRequest(@RequestBody Map<String, Object> data, HttpServletRequest request) {
+    log.info("Data Received >>>> " + data.toString());
+    Map<String, Object> valueMap = new HashMap<>();
+    try {
+        // Retrieve decryption parameters from the request
+        String iv = (String) data.get("iv"); // Base64 encoded IV
+        String salt = (String) data.get("salt"); // Base64 encoded salt
+        String passPhrase = (String) request.getSession().getAttribute(CommonConstants.PASS_PHRASE); // Passphrase from session
+        String encryptedData = (String) data.get("data"); // Encrypted data
+
+        // Logging the parameters for debugging purposes
+        log.info("IV: " + iv);
+        log.info("Salt: " + salt);
+        log.info("Pass Phrase: " + passPhrase);
+        log.info("Encrypted Data: " + encryptedData);
+
+        // Decrypt the data
+        String jsonData = AesGcm256.decrypt(iv, salt, passPhrase, encryptedData); // Decrypt the data
+        log.info("Decrypted form data: " + jsonData);
+
+        // Print the decrypted JSON string to ensure its structure
+        log.info("Decrypted JSON data: " + jsonData);
+
+        // Create an ObjectMapper instance and configure it
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES); // Ignore unknown properties during deserialization
+
+        // Deserialize the JSON string into a Map<String, Object>
+        valueMap = mapper.readValue(jsonData, new TypeReference<Map<String, Object>>() {});
+        log.info("After Decryption Values: " + valueMap);
+
+    } catch (JsonProcessingException e) {
+        log.error("Exception Occurred JsonProcessingException: " + e.getMessage(), e);
+    } catch (Exception e) {
+        log.error("General Exception Occurred: " + e.getMessage(), e);
+    }
+
+    // Pass the deserialized map to the service method
+    return adminService.modifyUserRequest(valueMap);
+}
