@@ -1,44 +1,32 @@
-package com.tcs.filter;
+ @PostMapping("/ModifyUserRequest")
+    public String modifyUserRequest(@RequestBody Map<String, Object> data, HttpServletRequest request) {
+        ///////////
+        log.info("Data Received >>>> " + data.toString());
+        HashMap valueMap=new HashMap<>();
+        try {
+//            Map<String, String> data = formData.toSingleValueMap();
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import java.io.IOException;
+            String jsonData = AesGcm256.decrypt(
+                    (String) data.get("iv"),
+                    (String) data.get("salt"),
+                    (String) request.getSession().getAttribute(CommonConstants.PASS_PHRASE),
+                    (String) data.get("data")
+            );
+            log.info("Decrypted form data " + jsonData.toString());
 
-public class AuthenticationFilter implements Filter {
+            // Creating an object of ObjectMapper class
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+            valueMap = mapper.readValue(jsonData, HashMap.class);
 
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-        // Initialization if needed
-    }
+            log.info("After Decryption Values :");
 
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        HttpServletResponse httpResponse = (HttpServletResponse) response;
-        HttpSession session = httpRequest.getSession(false);
 
-        String loginURI = httpRequest.getContextPath() + "/Security/home";
-
-        boolean loggedIn = session != null && session.getAttribute("user") != null;
-        boolean loginRequest = httpRequest.getRequestURI().equals(loginURI);
-
-        if (loggedIn || loginRequest) {
-            chain.doFilter(request, response);
-        } else {
-            httpResponse.sendRedirect(loginURI);
+        } catch (JsonProcessingException e) {
+            log.info("Exception Occurred JsonProcessingException"+e.getMessage());
+            log.info("Exception Occurred Cause"+e.getCause());
         }
-    }
+        //////////
+        return adminService.modifyUserRequest(valueMap);
 
-    @Override
-    public void destroy() {
-        // Cleanup if needed
     }
-}
