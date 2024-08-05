@@ -1,5 +1,1 @@
-select ch.HEDGE_ID, 
-        ch.HEDGE_BRANCH,ch.HEDGE_NAME,ch.HEDGE_UNIT, ch.HEDGE_DIRECT, 
-        ch.HEDGE_INDIRECT,ch.HEDGE_OTC,ch.HEDGE_EXCHANGE, 
-        ch.HEDGE_OUTFLOW,ch.HEDGE_INFLOW from CRS_HEDGE ch,REPORT_SUBMISSION rm 
-         where rm.SUBMISSION_ID=ch.REPORT_MASTER_LIST_ID_FK and rm.SUBMISSION_ID='10' order by ch.HEDGE_ID;
+java.lang.NullPointerException: Cannot invoke \"com.crs.commonJarService.services.ReportMasterService.insertRML(java.util.Map)\" because \"com.crs.commonJarService.controllers.ReportMasterController.reportMasterService\" is null\r\n\tat com.crs.commonJarService.controllers.ReportMasterController.insertRML(ReportMasterController.java:23)\r\n\tat java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)\r\n\tat java.base/java.lang.reflect.Method.invoke(Method.java:580)\r\n\tat org.springframework.
