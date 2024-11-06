@@ -1,3 +1,11 @@
+## Controller 
+ // Validate the Login User using PFID
+    @RequestMapping("/generateToken")
+    public ResponseEntity<String> login(@RequestBody Map<String, Object> map) {
+        return authService.login(map);
+    }
+
+## ServiceImpl
 public ResponseEntity<String> login(Map<String, Object> map) {
 
         //For getting additional Details other than User Details
@@ -45,3 +53,300 @@ public ResponseEntity<String> login(Map<String, Object> map) {
 
         return new ResponseEntity(responseVO, HttpStatus.OK);
     }
+
+## JWT-Utility
+
+package com.crs.JwtAuth.JwtAuthen;
+
+
+import com.crs.JwtAuth.Model.UserMaster;
+import com.crs.JwtAuth.Service.UserMasterServiceImpl;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.RequestBody;
+
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.logging.Logger;
+
+@Component
+public class JwtUtil {
+
+    static Logger log = Logger.getLogger(JwtUtil.class.getName());
+    private final String SECRET_KEY = "thisIsTheMostSecretKeytcs123springframeworkspringframeworkspringframework";
+    private Key key;
+    @Autowired
+    private UserMasterServiceImpl userMasterServiceImpl;
+
+    @PostConstruct
+    public void init() throws UnsupportedEncodingException {
+        key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private Boolean isTokenExpired(String token) throws UnsupportedEncodingException {
+        log.info(" <==========isTokenExpired Function Called ==========>:: ");
+        return extractExpiration(token).before(new Date());
+    }
+
+    public Date extractExpiration(String token) throws UnsupportedEncodingException {
+
+        log.info(" <==========extractExpiration Function Called ==========>:: ");
+        return extractClaim(token, Claims::getExpiration);
+    }
+
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) throws UnsupportedEncodingException {
+        final Claims claims = extractAllClaims(token);
+        log.info(" <==========extractClaim Function Called ==========>:: ");
+        return claimsResolver.apply(claims);
+    }
+
+    private Claims extractAllClaims(String token) throws UnsupportedEncodingException {
+        log.info(" <==========extractAllClaims Function Called ==========>:: ");
+        return Jwts.parser().setSigningKey(SECRET_KEY.getBytes(StandardCharsets.UTF_8)).build().parseClaimsJws(token).getBody();
+    }
+
+
+    // This Method Generate the Token
+    public String generateToken(UserMaster userMaster, String quarterYear,Map UserData,String CircleName) throws UnsupportedEncodingException {
+        log.info("<==========GenerateToken Function Called ==========>::  ");
+
+        String[] QFD = quarterYear.split("~");
+
+        // Added the login Users Details inside JWT Token
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("pf_number", userMaster.getPf());
+        claims.put("first_name", userMaster.getFirst_name());
+        claims.put("middle_name", userMaster.getMiddle_name());
+        claims.put("last_name", userMaster.getLast_name());
+        claims.put("branch_code", userMaster.getBranch_code());
+        claims.put("mobile_number", userMaster.getMobile_number());
+        claims.put("email_id", userMaster.getEmail_id());
+        claims.put("user_role", userMaster.getUserRole());
+        claims.put("status", userMaster.getStatus());
+        claims.put("created_dt", userMaster.getCreated_dt());
+        claims.put("created_by_fk", userMaster.getCreated_by_fk());
+        claims.put("quarter", QFD[0]);
+        claims.put("financial_year", QFD[1]);
+        claims.put("quarterEndDate", QFD[2]);
+        claims.put("previousYearDate", QFD[3]);
+        claims.put("previousQuarterDate", QFD[4]);
+        claims.put("circleName", CircleName);
+        claims.put("circleCode", UserData.get("CIRCLE_CODE"));
+        claims.put("roCode", UserData.get("REGION_NO"));
+        claims.put("auditStatus", UserData.get("CRS_AUDITABLE"));
+
+
+
+        // Token Expires After 1 Hrs
+        return Jwts.builder().setClaims(claims).setSubject("TOKEN").setIssuedAt(new Date(System.currentTimeMillis())).setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60)).signWith(SignatureAlgorithm.HS256, SECRET_KEY.getBytes(StandardCharsets.UTF_8)).compact();
+    }
+
+    public Boolean validateToken(String token, int PFID) throws UnsupportedEncodingException {
+        log.info(" <==========validateToken Function Called ==========>:: ");
+        final int usernameFromToken = extractPfNumber(token);
+        return (usernameFromToken == PFID && !isTokenExpired(token));
+    }
+
+    // This method provide extracted JWT Token Data.
+    public Map<String, String> getTokenData(Map<String, Object> map) throws UnsupportedEncodingException {
+
+        //For getting additional Details other than User Details
+        Map<String, String> data = (Map<String, String>) map.get("data");
+
+        String token=data.get("token");
+
+        Map<String, String> tokenData = new HashMap<>();
+        tokenData.put("pf_number", String.valueOf(extractPfNumber(token)));
+        tokenData.put("first_name", extractFirstName(token));
+        tokenData.put("middle_name", extractMiddleName(token));
+        tokenData.put("last_name", extractLastName(token));
+        tokenData.put("branch_code", extractBranchCode(token));
+        tokenData.put("email_id", extractEmailId(token));
+        tokenData.put("user_role", extractUserRole(token));
+        tokenData.put("status", extractStatus(token));
+        tokenData.put("created_by_fk", extractCreatedByFk(token));
+        tokenData.put("created_dt", extractCreatedDt(token));
+        tokenData.put("quarter", extractQuarter(token));
+        tokenData.put("financial_year", extractFinancialYear(token));
+        tokenData.put("quarterEndDate", extractQuarterEndDate(token));
+        tokenData.put("previousYearDate", extractPreviousYearDate(token));
+        tokenData.put("previousQuarterDate", extractPreviousQuarterDate(token));
+        tokenData.put("circleCode", extractCircleCode(token));
+        tokenData.put("circleName", extractCircleName(token));
+        tokenData.put("roCode", extractRoCode(token));
+        tokenData.put("auditStatus", extractAuditType(token));
+        return tokenData;
+    }
+
+
+    public String IsTokenValidate(HttpServletRequest request, Map<String, Object> map) throws UnsupportedEncodingException {
+
+        //For getting additional Details other than User Details
+        Map<String, String> data = (Map<String, String>) map.get("data");
+
+
+        int extractPfNumber = extractPfNumber(data.get("token"));
+        String extractFirstName = extractFirstName(data.get("token"));
+        String extractLastName = extractLastName(data.get("token"));
+
+        log.info("@@@ extractPfNumber values ::: " + extractPfNumber);
+        log.info("@@@ extractFirstName values ::: " + extractFirstName);
+        log.info("@@@ extractLastName values ::: " + extractLastName);
+
+        final String authorizationHeader = request.getHeader("Authorization");
+
+        int PF_Number = 0;
+        String jwt = null;
+        String requestResult = "Token is invalid";
+
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer")) {
+
+            log.info("inside filter IF ");
+            jwt = authorizationHeader.substring(7);
+            try {
+                PF_Number = extractPfNumber(jwt);
+                log.info("PFID WE GET:" + PF_Number);
+            } catch (ExpiredJwtException e) {
+                log.info("JWT Token has expired");
+            } catch (Exception e) {
+                log.info("Error while extracting username from JWT");
+            }
+        }
+
+//        request.setAttribute("token", "Invalid");
+        if (PF_Number != 0 /*&& SecurityContextHolder.getContext().getAuthentication() == null*/) {
+
+            log.info("Inside username != null ");
+
+//            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+
+            UserMaster userMaster = this.userMasterServiceImpl.getCustomUserData(PF_Number);
+
+            log.info("Loading loadUserByUsername :" + PF_Number);
+
+            if (validateToken(jwt, userMaster.getPf())) {
+
+                log.info("Inside ValidateToken ::::" + userMaster.getPf());
+
+                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(userMaster, null);
+                usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+
+//                request.setAttribute("token", "valid");
+                requestResult = "Token is valid";
+            }
+        }
+        return requestResult;
+    }
+
+
+    // Extract the Users PfNumber from JWt Token
+    public int extractPfNumber(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("pf_number", Integer.class));
+    }
+
+    // Extract the Users FirstName from JWt Token
+    public String extractFirstName(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("first_name", String.class));
+    }
+
+    // Extract the Users LastName from JWt Token
+    public String extractLastName(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("last_name", String.class));
+    }
+
+    // Extract the Users MiddleName from JWt Token
+    public String extractMiddleName(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("middle_name", String.class));
+    }
+
+    // Extract the Users BranchCode from JWt Token
+    public String extractBranchCode(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("branch_code", String.class));
+    }
+
+    // Extract the Users extractEmailId from JWt Token
+    public String extractEmailId(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("email_id", String.class));
+    }
+
+    // Extract the Users extractUserRole from JWt Token
+    public String extractUserRole(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("user_role", String.class));
+    }
+
+    // Extract the Users extractStatus from JWt Token
+    public String extractStatus(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("status", String.class));
+    }
+
+    // Extract the Users extractCreatedByFk from JWt Token
+    public String extractCreatedByFk(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("created_by_fk", String.class));
+    }
+
+    // Extract the Users extractCreatedDt from JWt Token
+    public String extractCreatedDt(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("created_dt", String.class));
+    }
+
+    // Extract the Users extractQuarter from JWt Token
+    public String extractQuarter(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("quarter", String.class));
+    }
+
+    // Extract the Users extractQuarter from JWt Token
+    public String extractFinancialYear(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("financial_year", String.class));
+    }
+
+    // Extract the Users extractQuarterEndDate from JWt Token
+    public String extractQuarterEndDate(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("quarterEndDate", String.class));
+    }
+
+    // Extract the Users extractPreviousYearDate from JWt Token
+    public String extractPreviousYearDate(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("previousYearDate", String.class));
+    }
+
+    // Extract the Users extractPreviousQuarterDate from JWt Token
+    public String extractPreviousQuarterDate(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("previousQuarterDate", String.class));
+    }
+
+    // Extract the Users extractCircleCode from JWt Token
+    public String extractCircleCode(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("circleCode", String.class));
+    }
+
+    // Extract the Users extractCircleName from JWt Token
+    public String extractCircleName(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("circleName", String.class));
+    }
+    // Extract the Users extractCircleName from JWt Token
+    public String extractRoCode(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("roCode", String.class));
+    }
+    // Extract the Users extractAuditType from JWt Token
+    public String extractAuditType(String token) throws UnsupportedEncodingException {
+        return extractClaim(token, claims -> claims.get("auditStatus", String.class));
+    }
+
+}
