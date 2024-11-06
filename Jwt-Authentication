@@ -1,0 +1,47 @@
+public ResponseEntity<String> login(Map<String, Object> map) {
+
+        //For getting additional Details other than User Details
+        //Map<String, String> loginuserData = (Map<String, String>) map.get("user");
+        ResponseVO<String> responseVO = new ResponseVO<>();
+        //log.info("Getting PfID: " + map.get("PFID"));
+
+        try {
+            //Getting User from Database
+            UserMaster userMaster = userMasterRepository.findByPf(Integer.parseInt((String) map.get("pf_number")));
+            log.info("userMaster Data: " + userMaster);
+
+            //User Data not Available
+            if (userMaster == null) {
+                responseVO.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+                responseVO.setMessage("User is InValid");
+                return new ResponseEntity(responseVO, HttpStatus.OK);
+            }
+
+            // Getting Qed & Financial Years Data.
+            String quarterYear = commonServiceCustomRepository.getQuarterYear();
+
+            log.info("Branch Passing  :"+userMaster.getBranch_code());
+            // Getting CircleCode & Audit Status Basis of Branch Code
+            Map<String,Object> Circle_AuditData = branchMasterRepository.getCircleCode(userMaster.getBranch_code());
+
+            log.info("Circle_AuditData: " + Circle_AuditData.get("CRS_AUDITABLE"));
+
+            String CircleName=branchMasterRepository.getCircleName((String) Circle_AuditData.get("CIRCLE_CODE"));
+
+
+            //Generating User Token with User Provided Data.
+            String tokenData = jwtUtil.generateToken(userMaster, quarterYear,Circle_AuditData,CircleName);
+
+            //Setting Success & Response Data for Request
+            responseVO.setStatusCode(HttpStatus.OK.value());
+            responseVO.setMessage("Data fetched successfully");
+            responseVO.setResult(tokenData);
+
+        } catch (Exception e) {
+            log.info("Error: " + e.getMessage());
+            responseVO.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            responseVO.setMessage("An error occurred");
+        }
+
+        return new ResponseEntity(responseVO, HttpStatus.OK);
+    }
